@@ -249,7 +249,7 @@
             :value="g"
             @change="(e) => updateGuide('vertical', idx, e.target.value)"
           />
-          <button @click="() => plantStore.removeGuide('vertical', g)" title="Remover">✖</button>
+        <button @click="() => removeGuide('vertical', g)" title="Remover">✖</button>
         </div>
       </div>
 
@@ -265,7 +265,7 @@
             :value="g"
             @change="(e) => updateGuide('horizontal', idx, e.target.value)"
           />
-          <button @click="() => plantStore.removeGuide('horizontal', g)" title="Remover">✖</button>
+          <button @click="() => removeGuide('horizontal', g)" title="Remover">✖</button>
         </div>
       </div>
     </div>
@@ -782,14 +782,28 @@ const resetZoom = () => {
 // Guide controls
 const addVerticalGuide = () => {
   if (!plantStore.lot) return
-  const pos = parseFloat((plantStore.lot.width / 2).toFixed(2))
-  plantStore.addGuide('vertical', pos)
+  const input = prompt('Posição X da guia vertical em metros (0 - ' + plantStore.lot.width + ')', String((plantStore.lot.width / 2).toFixed(2)))
+  if (input === null) return // cancel
+  const parsed = parseFloat(input)
+  if (Number.isNaN(parsed)) {
+    alert('Valor inválido')
+    return
+  }
+  const clamped = Math.min(Math.max(parsed, 0), plantStore.lot.width)
+  plantStore.addGuide('vertical', clamped)
 }
 
 const addHorizontalGuide = () => {
   if (!plantStore.lot) return
-  const pos = parseFloat((plantStore.lot.height / 2).toFixed(2))
-  plantStore.addGuide('horizontal', pos)
+  const input = prompt('Posição Y da guia horizontal em metros (0 - ' + plantStore.lot.height + ')', String((plantStore.lot.height / 2).toFixed(2)))
+  if (input === null) return // cancel
+  const parsed = parseFloat(input)
+  if (Number.isNaN(parsed)) {
+    alert('Valor inválido')
+    return
+  }
+  const clamped = Math.min(Math.max(parsed, 0), plantStore.lot.height)
+  plantStore.addGuide('horizontal', clamped)
 }
 
 const clearGuides = () => {
@@ -809,6 +823,10 @@ const updateGuide = (type, index, value) => {
     const clamped = Math.min(Math.max(parsed, 0), plantStore.lot.height)
     plantStore.updateGuide('horizontal', index, clamped)
   }
+}
+
+const removeGuide = (type, value) => {
+  plantStore.removeGuide(type, value)
 }
 
 </script>

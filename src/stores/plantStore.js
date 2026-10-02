@@ -229,6 +229,7 @@ export const usePlantStore = defineStore('plant', () => {
     deleteRoom,
     addGuide,
     removeGuide,
+    updateGuide,
     clearGuides,
     getRoomById,
     getTotalArea,
