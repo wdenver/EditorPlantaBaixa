@@ -36,6 +36,8 @@ export const usePlantStore = defineStore('plant', () => {
   const lot = ref(null)
   const rooms = ref([])
 
+  const guides = ref({ vertical: [], horizontal: [] })
+
   const persistProject = () => {
     if (typeof window === 'undefined') return
 
@@ -44,7 +46,8 @@ export const usePlantStore = defineStore('plant', () => {
       JSON.stringify({
         version: 1,
         lot: lot.value,
-        rooms: rooms.value
+        rooms: rooms.value,
+        guides: guides.value
       })
     )
   }
@@ -56,6 +59,19 @@ export const usePlantStore = defineStore('plant', () => {
     rooms.value = Array.isArray(projectData.rooms)
       ? projectData.rooms.map(normalizeRoom)
       : []
+
+    // load guides if present
+    if (projectData.guides && typeof projectData.guides === 'object') {
+      const v = Array.isArray(projectData.guides.vertical)
+        ? projectData.guides.vertical.map((n) => parseNumber(n)).filter(() => true)
+        : []
+      const h = Array.isArray(projectData.guides.horizontal)
+        ? projectData.guides.horizontal.map((n) => parseNumber(n)).filter(() => true)
+        : []
+      guides.value = { vertical: v, horizontal: h }
+    } else {
+      guides.value = { vertical: [], horizontal: [] }
+    }
 
     persistProject()
     return true
@@ -80,7 +96,8 @@ export const usePlantStore = defineStore('plant', () => {
       {
         version: 1,
         lot: lot.value,
-        rooms: rooms.value
+        rooms: rooms.value,
+        guides: guides.value
       },
       null,
       2
@@ -95,6 +112,7 @@ export const usePlantStore = defineStore('plant', () => {
       createdAt: new Date().toLocaleString()
     }
     rooms.value = []
+    guides.value = { vertical: [], horizontal: [] }
     persistProject()
   }
 
@@ -122,6 +140,41 @@ export const usePlantStore = defineStore('plant', () => {
     persistProject()
   }
 
+  const addGuide = (type, position) => {
+    const pos = parseNumber(position)
+    if (type === 'vertical') {
+      if (!guides.value.vertical.includes(pos)) {
+        guides.value.vertical.push(pos)
+        guides.value.vertical.sort((a, b) => a - b)
+        persistProject()
+      }
+    }
+    if (type === 'horizontal') {
+      if (!guides.value.horizontal.includes(pos)) {
+        guides.value.horizontal.push(pos)
+        guides.value.horizontal.sort((a, b) => a - b)
+        persistProject()
+      }
+    }
+  }
+
+  const removeGuide = (type, position) => {
+    const pos = parseNumber(position)
+    if (type === 'vertical') {
+      guides.value.vertical = guides.value.vertical.filter(g => g !== pos)
+      persistProject()
+    }
+    if (type === 'horizontal') {
+      guides.value.horizontal = guides.value.horizontal.filter(g => g !== pos)
+      persistProject()
+    }
+  }
+
+  const clearGuides = () => {
+    guides.value = { vertical: [], horizontal: [] }
+    persistProject()
+  }
+
   const getRoomById = (id) => {
     return rooms.value.find(r => r.id === id)
   }
@@ -133,6 +186,7 @@ export const usePlantStore = defineStore('plant', () => {
   const resetProject = () => {
     lot.value = null
     rooms.value = []
+    guides.value = { vertical: [], horizontal: [] }
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(STORAGE_KEY)
     }
@@ -143,10 +197,14 @@ export const usePlantStore = defineStore('plant', () => {
   return {
     lot,
     rooms,
+    guides,
     createLot,
     addRoom,
     updateRoom,
     deleteRoom,
+    addGuide,
+    removeGuide,
+    clearGuides,
     getRoomById,
     getTotalArea,
     resetProject,

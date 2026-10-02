@@ -47,6 +47,32 @@
           />
         </g>
 
+        <!-- Guides -->
+        <g class="guides" pointer-events="none">
+          <line
+            v-for="(x, idx) in plantStore.guides.vertical"
+            :key="`vguide-${idx}`"
+            :x1="x * scale"
+            :y1="0"
+            :x2="x * scale"
+            :y2="plantStore.lot.height * scale"
+            stroke="#e91e63"
+            stroke-width="1"
+            stroke-dasharray="6 4"
+          />
+          <line
+            v-for="(y, idx) in plantStore.guides.horizontal"
+            :key="`hguide-${idx}`"
+            :y1="y * scale"
+            :x1="0"
+            :y2="y * scale"
+            :x2="plantStore.lot.width * scale"
+            stroke="#e91e63"
+            stroke-width="1"
+            stroke-dasharray="6 4"
+          />
+        </g>
+
         <!-- Rooms -->
         <g class="rooms">
           <g
@@ -213,6 +239,11 @@
       <button @click="zoomIn" class="btn-secondary" title="Aumentar zoom">🔍+</button>
       <button @click="zoomOut" class="btn-secondary" title="Diminuir zoom">🔍-</button>
       <button @click="resetZoom" class="btn-secondary" title="Resetar zoom">↺ Resetar</button>
+
+      <button @click="addVerticalGuide" class="btn-secondary" title="Adicionar guia vertical">➤ Guia vertical</button>
+      <button @click="addHorizontalGuide" class="btn-secondary" title="Adicionar guia horizontal">➤ Guia horizontal</button>
+      <button @click="clearGuides" class="btn-secondary" title="Remover todas as guias">✖ Limpar guias</button>
+
       <span class="zoom-level">{{ Math.round(scale * 100) }}%</span>
     </div>
   </div>
@@ -258,6 +289,7 @@ const snapRoomToEdges = (candidateX, candidateY, room) => {
 
   const otherRooms = plantStore.rooms.filter(otherRoom => otherRoom.id !== room.id)
 
+  // consider other rooms
   for (const otherRoom of otherRooms) {
     const xCandidates = [
       { value: otherRoom.x, distance: Math.abs(snappedX - otherRoom.x) },
@@ -284,7 +316,154 @@ const snapRoomToEdges = (candidateX, candidateY, room) => {
     }
   }
 
+  // consider guides
+  if (plantStore.guides) {
+    const vGuides = plantStore.guides.vertical || []
+    for (const g of vGuides) {
+      const leftDist = Math.abs(snappedX - g)
+      const rightDist = Math.abs((snappedX + room.width) - g)
+      if (leftDist <= SNAP_DISTANCE && leftDist <= rightDist) {
+        snappedX = g
+      }
+      if (rightDist <= SNAP_DISTANCE && rightDist < leftDist) {
+        snappedX = g - room.width
+      }
+    }
+
+    const hGuides = plantStore.guides.horizontal || []
+    for (const g of hGuides) {
+      const topDist = Math.abs(snappedY - g)
+      const bottomDist = Math.abs((snappedY + room.height) - g)
+      if (topDist <= SNAP_DISTANCE && topDist <= bottomDist) {
+        snappedY = g
+      }
+      if (bottomDist <= SNAP_DISTANCE && bottomDist < topDist) {
+        snappedY = g - room.height
+      }
+    }
+  }
+
   return { x: snappedX, y: snappedY }
+}
+
+const snapRoomResize = (room, edge, candidateX, candidateY, candidateWidth, candidateHeight) => {
+  let snappedX = candidateX
+  let snappedY = candidateY
+  let snappedWidth = candidateWidth
+  let snappedHeight = candidateHeight
+
+  const otherRooms = plantStore.rooms.filter(otherRoom => otherRoom.id !== room.id)
+
+  for (const otherRoom of otherRooms) {
+    const otherLeft = otherRoom.x
+    const otherRight = otherRoom.x + otherRoom.width
+    const otherTop = otherRoom.y
+    const otherBottom = otherRoom.y + otherRoom.height
+
+    if (edge === 'right') {
+      const rightEdge = snappedX + snappedWidth
+      const candidates = [
+        { value: otherLeft, distance: Math.abs(rightEdge - otherLeft) },
+        { value: otherRight, distance: Math.abs(rightEdge - otherRight) }
+      ]
+      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
+      if (closest.distance <= SNAP_DISTANCE) {
+        snappedWidth = closest.value - snappedX
+      }
+    }
+
+    if (edge === 'left') {
+      const candidates = [
+        { value: otherLeft, distance: Math.abs(snappedX - otherLeft) },
+        { value: otherRight, distance: Math.abs(snappedX - otherRight) }
+      ]
+      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
+      if (closest.distance <= SNAP_DISTANCE) {
+        snappedX = closest.value
+        snappedWidth = (room.x + room.width) - snappedX
+      }
+    }
+
+    if (edge === 'bottom') {
+      const bottomEdge = snappedY + snappedHeight
+      const candidates = [
+        { value: otherTop, distance: Math.abs(bottomEdge - otherTop) },
+        { value: otherBottom, distance: Math.abs(bottomEdge - otherBottom) }
+      ]
+      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
+      if (closest.distance <= SNAP_DISTANCE) {
+        snappedHeight = closest.value - snappedY
+      }
+    }
+
+    if (edge === 'top') {
+      const candidates = [
+        { value: otherTop, distance: Math.abs(snappedY - otherTop) },
+        { value: otherBottom, distance: Math.abs(snappedY - otherBottom) }
+      ]
+      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
+      if (closest.distance <= SNAP_DISTANCE) {
+        snappedY = closest.value
+        snappedHeight = (room.y + room.height) - snappedY
+      }
+    }
+  }
+
+  // consider guides for resize edges
+  if (plantStore.guides) {
+    const vGuides = plantStore.guides.vertical || []
+    if (edge === 'right') {
+      const rightEdge = snappedX + snappedWidth
+      for (const g of vGuides) {
+        const d = Math.abs(rightEdge - g)
+        if (d <= SNAP_DISTANCE) {
+          snappedWidth = g - snappedX
+          break
+        }
+      }
+    }
+
+    if (edge === 'left') {
+      for (const g of vGuides) {
+        const d = Math.abs(snappedX - g)
+        if (d <= SNAP_DISTANCE) {
+          snappedX = g
+          snappedWidth = (room.x + room.width) - snappedX
+          break
+        }
+      }
+    }
+
+    const hGuides = plantStore.guides.horizontal || []
+    if (edge === 'bottom') {
+      const bottomEdge = snappedY + snappedHeight
+      for (const g of hGuides) {
+        const d = Math.abs(bottomEdge - g)
+        if (d <= SNAP_DISTANCE) {
+          snappedHeight = g - snappedY
+          break
+        }
+      }
+    }
+
+    if (edge === 'top') {
+      for (const g of hGuides) {
+        const d = Math.abs(snappedY - g)
+        if (d <= SNAP_DISTANCE) {
+          snappedY = g
+          snappedHeight = (room.y + room.height) - snappedY
+          break
+        }
+      }
+    }
+  }
+
+  return {
+    x: snappedX,
+    y: snappedY,
+    width: snappedWidth,
+    height: snappedHeight
+  }
 }
 
 const snapRoomResize = (room, edge, candidateX, candidateY, candidateWidth, candidateHeight) => {
@@ -633,6 +812,25 @@ const zoomOut = () => {
 const resetZoom = () => {
   scale.value = 40
 }
+
+// Guide controls
+const addVerticalGuide = () => {
+  if (!plantStore.lot) return
+  const pos = parseFloat((plantStore.lot.width / 2).toFixed(2))
+  plantStore.addGuide('vertical', pos)
+}
+
+const addHorizontalGuide = () => {
+  if (!plantStore.lot) return
+  const pos = parseFloat((plantStore.lot.height / 2).toFixed(2))
+  plantStore.addGuide('horizontal', pos)
+}
+
+const clearGuides = () => {
+  if (!confirm('Remover todas as guias?')) return
+  plantStore.clearGuides()
+}
+
 </script>
 
 <style scoped>
