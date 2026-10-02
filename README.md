@@ -42,36 +42,42 @@ npm run dev
 
 ## 💻 Como Usar
 
-### 1. Criar um Lote
-- Na primeira tela, insira as dimensões do lote (largura e altura em metros)
-- Clique em "Criar Lote"
+1. Criar o lote
+- Use o formulário lateral de "Lote" para definir largura e altura (metros) e clique em "Criar Lote".
 
-### 2. Adicionar Cômodos
-- Preencha o formulário com:
-  - **Nome**: Nome do cômodo (ex: Sala de Estar)
-  - **Largura**: Largura em metros
-  - **Altura**: Altura em metros
-  - **Posição X**: Posição horizontal (em metros)
-  - **Posição Y**: Posição vertical (em metros)
-  - **Cor**: Selecione uma cor para o cômodo
-- Clique em "Adicionar Cômodo"
+2. Adicionar um cômodo
+- No formulário "Adicionar Cômodo" informe:
+  - Nome
+  - Largura (m)
+  - Altura (m)
+  - Posição X (m) — posição horizontal dentro do lote
+  - Posição Y (m) — posição vertical dentro do lote
+  - Cor
+- Clique em "Adicionar Cômodo"; o cômodo aparece imediatamente no canvas.
 
-### 3. Visualizar a Planta
-- A visualização aparece no canvas à direita
-- Use os botões de zoom para ampliar/diminuir
+3. Editar um cômodo
+- Duplo-clique no cômodo no canvas ou use o ícone ✏️ na lista lateral para abrir o editor.
+- Altere os valores e confirme para aplicar as mudanças.
 
-### 4. Editar Cômodos
-- Clique no ícone ✏️ ao lado do cômodo na lista lateral
-- Modifique os dados no formulário
-- Clique em "Atualizar Cômodo"
+4. Mover e redimensionar
+- Clique e arraste um cômodo no canvas para reposicioná‑lo.
+- Arraste as alças brancas nas bordas para redimensionar (mínimo 0.5 m).
+- As posições/dimensões respeitam os limites do lote e atualizam em tempo real.
 
-### 5. Mover Cômodos
-- Clique e arraste os cômodos diretamente no canvas
-- Os limites do lote são automaticamente respeitados
+5. Menu de contexto
+- Clique com o botão direito sobre um cômodo para abrir o menu de contexto com as opções: Duplicar, Editar, Inverter altura × largura e Apagar.
 
-### 6. Deletar Cômodos
-- Clique no ícone 🗑️ ao lado do cômodo na lista lateral
-- Confirme a exclusão
+6. Comportamento e validações importantes
+- Cômodos não podem ultrapassar os limites do lote.
+- Tamanho mínimo por dimensão: 0.5 m.
+- Snapping: ao mover/redimensionar, cômodos encostam automaticamente em bordas de outros cômodos quando próximos.
+- A área de cada cômodo é calculada e exibida sobre o retângulo no canvas.
+
+7. Zoom e visualização
+- Use os botões de zoom (🔍+ / 🔍-) e "Resetar" para ajustar a escala.
+- O nível de zoom é exibido em percentagem.
+
+Observação: todas as alterações são aplicadas ao estado local da aplicação (sem backend por padrão) e são refletidas imediatamente na visualização do canvas.
 
 ## 📊 Interface
 
