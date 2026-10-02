@@ -235,6 +235,41 @@
       </p>
     </div>
 
+    <!-- Guides panel: list and edit positions -->
+    <div class="guides-panel">
+      <div class="guides-column">
+        <h4>Guias Verticais</h4>
+        <div v-if="plantStore.guides.vertical.length === 0" class="muted">Nenhuma guia vertical</div>
+        <div v-for="(g, idx) in plantStore.guides.vertical" :key="`vguide-list-${idx}`" class="guide-row">
+          <input
+            type="number"
+            :min="0"
+            :max="plantStore.lot ? plantStore.lot.width : 100"
+            step="0.1"
+            :value="g"
+            @change="(e) => updateGuide('vertical', idx, e.target.value)"
+          />
+          <button @click="() => plantStore.removeGuide('vertical', g)" title="Remover">✖</button>
+        </div>
+      </div>
+
+      <div class="guides-column">
+        <h4>Guias Horizontais</h4>
+        <div v-if="plantStore.guides.horizontal.length === 0" class="muted">Nenhuma guia horizontal</div>
+        <div v-for="(g, idx) in plantStore.guides.horizontal" :key="`hguide-list-${idx}`" class="guide-row">
+          <input
+            type="number"
+            :min="0"
+            :max="plantStore.lot ? plantStore.lot.height : 100"
+            step="0.1"
+            :value="g"
+            @change="(e) => updateGuide('horizontal', idx, e.target.value)"
+          />
+          <button @click="() => plantStore.removeGuide('horizontal', g)" title="Remover">✖</button>
+        </div>
+      </div>
+    </div>
+
     <div class="canvas-controls">
       <button @click="zoomIn" class="btn-secondary" title="Aumentar zoom">🔍+</button>
       <button @click="zoomOut" class="btn-secondary" title="Diminuir zoom">🔍-</button>
@@ -466,76 +501,7 @@ const snapRoomResize = (room, edge, candidateX, candidateY, candidateWidth, cand
   }
 }
 
-const snapRoomResize = (room, edge, candidateX, candidateY, candidateWidth, candidateHeight) => {
-  let snappedX = candidateX
-  let snappedY = candidateY
-  let snappedWidth = candidateWidth
-  let snappedHeight = candidateHeight
 
-  const otherRooms = plantStore.rooms.filter(otherRoom => otherRoom.id !== room.id)
-
-  for (const otherRoom of otherRooms) {
-    const otherLeft = otherRoom.x
-    const otherRight = otherRoom.x + otherRoom.width
-    const otherTop = otherRoom.y
-    const otherBottom = otherRoom.y + otherRoom.height
-
-    if (edge === 'right') {
-      const rightEdge = snappedX + snappedWidth
-      const candidates = [
-        { value: otherLeft, distance: Math.abs(rightEdge - otherLeft) },
-        { value: otherRight, distance: Math.abs(rightEdge - otherRight) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedWidth = closest.value - snappedX
-      }
-    }
-
-    if (edge === 'left') {
-      const candidates = [
-        { value: otherLeft, distance: Math.abs(snappedX - otherLeft) },
-        { value: otherRight, distance: Math.abs(snappedX - otherRight) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedX = closest.value
-        snappedWidth = (room.x + room.width) - snappedX
-      }
-    }
-
-    if (edge === 'bottom') {
-      const bottomEdge = snappedY + snappedHeight
-      const candidates = [
-        { value: otherTop, distance: Math.abs(bottomEdge - otherTop) },
-        { value: otherBottom, distance: Math.abs(bottomEdge - otherBottom) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedHeight = closest.value - snappedY
-      }
-    }
-
-    if (edge === 'top') {
-      const candidates = [
-        { value: otherTop, distance: Math.abs(snappedY - otherTop) },
-        { value: otherBottom, distance: Math.abs(snappedY - otherBottom) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedY = closest.value
-        snappedHeight = (room.y + room.height) - snappedY
-      }
-    }
-  }
-
-  return {
-    x: snappedX,
-    y: snappedY,
-    width: snappedWidth,
-    height: snappedHeight
-  }
-}
 
 const startDrag = (event, room) => {
   if (event.button !== 0) return // Only left click
@@ -831,6 +797,20 @@ const clearGuides = () => {
   plantStore.clearGuides()
 }
 
+const updateGuide = (type, index, value) => {
+  const parsed = parseFloat(value)
+  if (Number.isNaN(parsed)) return
+  // clamp to lot bounds
+  if (type === 'vertical' && plantStore.lot) {
+    const clamped = Math.min(Math.max(parsed, 0), plantStore.lot.width)
+    plantStore.updateGuide('vertical', index, clamped)
+  }
+  if (type === 'horizontal' && plantStore.lot) {
+    const clamped = Math.min(Math.max(parsed, 0), plantStore.lot.height)
+    plantStore.updateGuide('horizontal', index, clamped)
+  }
+}
+
 </script>
 
 <style scoped>
@@ -1010,5 +990,44 @@ h3 {
   .canvas-controls {
     flex-wrap: wrap;
   }
+}
+
+.guides-panel {
+  display: flex;
+  gap: 12px;
+  background: #fff8f9;
+  border: 1px dashed #f8bbd0;
+  padding: 10px;
+  border-radius: 6px;
+}
+.guides-column {
+  flex: 1;
+}
+.guides-column h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.95em;
+}
+.guide-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.guide-row input[type="number"] {
+  width: 110px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+.guide-row button {
+  padding: 6px 8px;
+  background: #ff5252;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.guide-row .muted {
+  color: #777;
 }
 </style>

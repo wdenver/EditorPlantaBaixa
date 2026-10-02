@@ -170,6 +170,31 @@ export const usePlantStore = defineStore('plant', () => {
     }
   }
 
+  const updateGuide = (type, index, position) => {
+    const pos = parseNumber(position)
+    if (type === 'vertical') {
+      if (index >= 0 && index < guides.value.vertical.length) {
+        // avoid duplicates
+        const without = guides.value.vertical.filter((_, i) => i !== index)
+        if (!without.includes(pos)) {
+          guides.value.vertical[index] = pos
+          guides.value.vertical.sort((a, b) => a - b)
+          persistProject()
+        }
+      }
+    }
+    if (type === 'horizontal') {
+      if (index >= 0 && index < guides.value.horizontal.length) {
+        const without = guides.value.horizontal.filter((_, i) => i !== index)
+        if (!without.includes(pos)) {
+          guides.value.horizontal[index] = pos
+          guides.value.horizontal.sort((a, b) => a - b)
+          persistProject()
+        }
+      }
+    }
+  }
+
   const clearGuides = () => {
     guides.value = { vertical: [], horizontal: [] }
     persistProject()
