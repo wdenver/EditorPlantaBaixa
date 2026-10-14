@@ -36,76 +36,107 @@
       </div>
     </div>
 
-    <div v-else class="editor-content">
-      <PlantCanvas class="fullscreen-canvas" @edit-room="selectRoomToEdit" />
-
-      <div class="floating-panel">
-        <div class="lot-info">
-          <h3>Informações do Lote</h3>
-          <div class="info-item">
-            <span>Dimensões:</span>
-            <strong>{{ plantStore.lot.width }}m × {{ plantStore.lot.height }}m</strong>
-          </div>
-          <div class="info-item">
-            <span>Área Total:</span>
-            <strong>{{ (plantStore.lot.width * plantStore.lot.height).toFixed(2) }} m²</strong>
-          </div>
-          <div class="info-item">
-            <span>Cômodos:</span>
-            <strong>{{ plantStore.rooms.length }}</strong>
-          </div>
-          <div class="info-item">
-            <span>Área Ocupada:</span>
-            <strong>{{ plantStore.getTotalArea.toFixed(2) }} m²</strong>
-          </div>
-
-          <div class="lot-actions">
-            <button class="btn-primary" @click="openAddRoomModal" style="width: 100%; margin-top: 10px;">
-              ➕ Novo Cômodo
-            </button>
-            <button class="btn-warning" @click="editLot" style="width: 100%; margin-top: 10px;">
-              ✏️ Editar Lote
-            </button>
-            <button class="btn-secondary" @click="saveProjectFile" style="width: 100%; margin-top: 10px;">
-              💾 Salvar Arquivo
-            </button>
-            <button class="btn-secondary" @click="triggerFileImport" style="width: 100%; margin-top: 10px;">
-              📂 Carregar Arquivo
-            </button>
-            <button class="btn-danger" @click="resetProject" style="width: 100%; margin-top: 10px;">
-              🗑️ Limpar Projeto
-            </button>
-          </div>
+    <div v-else class="editor-shell">
+      <header class="top-bar">
+        <div class="brand-area">
+          <div class="brand-mark">PB</div>
+          <span>Planta Baixa</span>
         </div>
 
-        <div class="rooms-list">
-          <h3>Cômodos</h3>
-          <div v-if="plantStore.rooms.length === 0" class="empty-state">
-            <p>Nenhum cômodo adicionado ainda.</p>
-            <p style="font-size: 0.9em; opacity: 0.7;">Clique em "Novo Cômodo" para adicionar.</p>
+        <nav class="main-menu" aria-label="Menu principal">
+          <button type="button" class="menu-button active">Arquivo</button>
+          <button type="button" class="menu-button">Editar</button>
+          <button type="button" class="menu-button">Visualizar</button>
+          <button type="button" class="menu-button">Ajuda</button>
+        </nav>
+
+        <div class="top-actions">
+          <button type="button" class="btn-secondary" @click="saveProjectFile">Salvar</button>
+          <button type="button" class="btn-secondary" @click="triggerFileImport">Carregar</button>
+        </div>
+      </header>
+
+      <div class="editor-body">
+        <aside class="toolbox">
+          <div class="tool-section">
+            <span class="tool-label">Ferramentas</span>
+            <button type="button" class="tool-button active">🧭 Planta</button>
+            <button type="button" class="tool-button" @click="openAddRoomModal">➕ Cômodo</button>
+            <button type="button" class="tool-button" @click="editLot">✏️ Lote</button>
           </div>
-          <div v-else class="rooms-items">
-            <div
-              v-for="room in plantStore.rooms"
-              :key="room.id"
-              class="room-item"
-              :style="{ borderLeftColor: room.color }"
-            >
-              <div class="room-header">
-                <h4>{{ room.name }}</h4>
-                <div class="color-indicator" :style="{ backgroundColor: room.color }"></div>
-              </div>
-              <div class="room-details">
-                <p><small>{{ room.width }}m × {{ room.height }}m</small></p>
-                <p><small>Área: {{ (room.width * room.height).toFixed(2) }} m²</small></p>
-              </div>
-              <div class="room-actions">
-                <button class="btn-sm btn-edit" @click="selectRoomToEdit(room)">✏️</button>
-                <button class="btn-sm btn-delete" @click="deleteRoom(room.id)">🗑️</button>
-              </div>
+
+          <div class="tool-section">
+            <span class="tool-label">Projeto</span>
+            <button type="button" class="tool-button danger" @click="resetProject">🗑️ Limpar</button>
+          </div>
+        </aside>
+
+        <main class="workspace-panel">
+          <PlantCanvas class="workspace-canvas" @edit-room="selectRoomToEdit" />
+        </main>
+
+        <aside class="details-panel">
+          <div class="panel-section">
+            <h3>Resumo do lote</h3>
+            <div class="info-item">
+              <span>Dimensões</span>
+              <strong>{{ plantStore.lot.width }}m × {{ plantStore.lot.height }}m</strong>
+            </div>
+            <div class="info-item">
+              <span>Área total</span>
+              <strong>{{ (plantStore.lot.width * plantStore.lot.height).toFixed(2) }} m²</strong>
+            </div>
+            <div class="info-item">
+              <span>Cômodos</span>
+              <strong>{{ plantStore.rooms.length }}</strong>
+            </div>
+            <div class="info-item">
+              <span>Área ocupada</span>
+              <strong>{{ plantStore.getTotalArea.toFixed(2) }} m²</strong>
             </div>
           </div>
-        </div>
+
+          <div class="panel-section">
+            <h3>Imagens SVG</h3>
+            <SvgPalette />
+            <p class="muted" style="margin-top:8px">Clique para inserir no centro ou arraste para o canvas.</p>
+          </div>
+
+          <!-- <div class="panel-section">
+            <div class="panel-header">
+              <h3>Cômodos</h3>
+              <button type="button" class="mini-button" @click="openAddRoomModal">+ Novo</button>
+            </div>
+
+            <div v-if="plantStore.rooms.length === 0" class="empty-state">
+              <p>Nenhum cômodo adicionado ainda.</p>
+            </div>
+
+            <div v-else class="rooms-list">
+              <div
+                v-for="room in plantStore.rooms"
+                :key="room.id"
+                class="room-item"
+                :style="{ borderLeftColor: room.color }"
+              >
+                <div class="room-header">
+                  <h4>{{ room.name }}</h4>
+                  <span class="color-indicator" :style="{ backgroundColor: room.color }"></span>
+                </div>
+                <div class="room-details">
+                  <p>{{ room.width }}m × {{ room.height }}m</p>
+                  <p>Área: {{ (room.width * room.height).toFixed(2) }} m²</p>
+                </div>
+                <div class="room-actions">
+                  <button class="btn-sm btn-edit" @click="selectRoomToEdit(room)">✏️</button>
+                  <button class="btn-sm btn-delete" @click="deleteRoom(room.id)">🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div> -->
+
+
+        </aside>
       </div>
 
       <div v-if="isRoomModalOpen" class="modal-overlay">
@@ -139,12 +170,28 @@ import { ref } from 'vue'
 import { usePlantStore } from '../stores/plantStore'
 import PlantCanvas from './PlantCanvas.vue'
 import RoomForm from './RoomForm.vue'
+import SvgPalette from './SvgPalette.vue'
 
 const plantStore = usePlantStore()
 const newLot = ref({ width: '', height: '' })
 const selectedRoom = ref(null)
 const isRoomModalOpen = ref(false)
 const fileInput = ref(null)
+
+// listen to click-to-place events dispatched by SvgPalette
+window.addEventListener('place-image', (ev) => {
+  const item = ev.detail
+  if (!plantStore.lot) {
+    alert('Crie um lote primeiro para inserir imagens.')
+    return
+  }
+  // center position
+  const centerX = Math.max(0, (plantStore.lot.width / 2) - (item.scale / 2))
+  const vb = { vbWidth: item.vbWidth || 1, vbHeight: item.vbHeight || 1 }
+  const heightMeters = item.scale * (vb.vbHeight / vb.vbWidth)
+  const centerY = Math.max(0, (plantStore.lot.height / 2) - (heightMeters / 2))
+  plantStore.addPlacedImage({ path: item.path, name: item.name, scaleMeters: item.scale, x: centerX, y: centerY, vbWidth: vb.vbWidth, vbHeight: vb.vbHeight })
+})
 
 const handleCreateLot = () => {
   if (newLot.value.width && newLot.value.height) {
@@ -249,36 +296,37 @@ const handleFileImport = async (event) => {
 
 <style scoped>
 .editor-container {
-  min-height: calc(100vh - 120px);
+  min-height: 100vh;
+  background: #eef2f5;
 }
 
 .setup-section {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 500px;
-  padding: 20px;
+  min-height: 100vh;
+  padding: 24px;
 }
 
 .setup-card {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  max-width: 400px;
+  background: #ffffff;
+  padding: 40px 32px;
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+  max-width: 420px;
   width: 100%;
 }
 
 .setup-card h2 {
-  color: #333;
+  color: #1f2937;
   margin-bottom: 10px;
   font-size: 1.8em;
 }
 
 .setup-card p {
-  color: #666;
-  margin-bottom: 30px;
-  font-size: 1.1em;
+  color: #475569;
+  margin-bottom: 28px;
+  font-size: 1.05em;
 }
 
 .lot-form {
@@ -295,135 +343,234 @@ const handleFileImport = async (event) => {
 
 .form-group label {
   font-weight: 600;
-  color: #333;
+  color: #334155;
 }
 
 .form-group input {
-  padding: 12px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
+  padding: 12px 14px;
+  border: 1px solid #d9e1ea;
+  border-radius: 10px;
   font-size: 1em;
-  transition: border-color 0.3s;
+  background: #f8fafc;
 }
 
 .form-group input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.09);
+  outline: none;
 }
 
-.editor-content {
-  /* position: relative; */
-  /* background: white; */
-  /* border-radius: 12px; */
-  /* overflow: hidden; */
-  /* box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); */
-  /* height: calc(100vh - 140px); */
-}
-
-.hidden-file-input {
-  display: none;
-}
-
-.fullscreen-canvas {
-padding-left: 400px;
-  width: 100%;
-  height: 100%;
-}
-
-.floating-panel {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  bottom: 15px;
-  width: min(330px, 92vw);
-  background: rgba(249, 249, 249, 0.95);
-  backdrop-filter: blur(8px);
-  padding: 16px;
-  overflow-y: auto;
-  border: 1px solid #e8e8e8;
-  border-radius: 10px;
+.editor-shell {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  z-index: 5;
+  min-height: 100vh;
+  background: #edf2f7;
 }
 
-.lot-info {
-  background: white;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
-.lot-info h3 {
-  color: #333;
-  margin-bottom: 15px;
-  font-size: 1.1em;
-  border-bottom: 2px solid #667eea;
-  padding-bottom: 10px;
+.brand-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #22c55e);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.main-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.menu-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.menu-button.active {
+  background: #e0f2fe;
+  color: #075985;
+  border-color: #bae6fd;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-body {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 320px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.toolbox {
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tool-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.tool-button {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: #1f2937;
+  border: 1px solid transparent;
+  text-align: left;
+  font-weight: 600;
+}
+
+.tool-button:hover,
+.tool-button.active {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.tool-button.danger {
+  color: #b91c1c;
+}
+
+.workspace-panel {
+  min-width: 0;
+  padding: 12px;
+  background: #edf2f7;
+}
+
+.workspace-canvas {
+  display: block;
+  height: calc(100vh - 118px);
+  min-height: 500px;
+}
+
+.details-panel {
+  background: #f8fafc;
+  border-left: 1px solid #e2e8f0;
+  padding: 18px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.panel-section h3 {
+  margin: 0 0 12px;
+  color: #0f172a;
+  font-size: 1rem;
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: #475569;
   margin-bottom: 10px;
-  font-size: 0.95em;
-  color: #555;
 }
 
 .info-item strong {
-  color: #667eea;
-  font-weight: 600;
+  color: #0f172a;
+  font-weight: 700;
 }
 
-.rooms-list {
-  flex: 1;
+.panel-header {
   display: flex;
-  flex-direction: column;
-  min-height: 220px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
-.rooms-list h3 {
-  color: #333;
-  margin-bottom: 15px;
-  font-size: 1.1em;
-  border-bottom: 2px solid #667eea;
-  padding-bottom: 10px;
+.mini-button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .empty-state {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 30px 10px;
+  padding: 20px 12px;
   text-align: center;
-  color: #999;
-  background: white;
-  border-radius: 8px;
-  border: 2px dashed #ddd;
-  flex: 1;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px dashed #cbd5e1;
 }
 
-.rooms-items {
+.rooms-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
 }
 
 .room-item {
-  background: white;
+  background: #f8fafc;
   padding: 12px;
-  border-radius: 6px;
-  border-left: 4px solid #667eea;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s;
-}
-
-.room-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  border-radius: 10px;
+  border-left: 4px solid #4f46e5;
+  border: 1px solid #e2e8f0;
 }
 
 .room-header {
@@ -435,22 +582,22 @@ padding-left: 400px;
 
 .room-header h4 {
   margin: 0;
-  color: #333;
-  font-size: 0.95em;
-  flex: 1;
+  color: #0f172a;
+  font-size: 0.92em;
 }
 
 .color-indicator {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 2px solid #ddd;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
 
 .room-details {
-  margin-bottom: 10px;
-  font-size: 0.85em;
-  color: #666;
+  font-size: 0.8em;
+  color: #475569;
+  margin-bottom: 8px;
 }
 
 .room-details p {
@@ -463,42 +610,43 @@ padding-left: 400px;
 }
 
 .btn-sm {
-  padding: 6px 10px;
-  font-size: 0.9em;
-  border-radius: 4px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  border-radius: 8px;
   border: none;
-  cursor: pointer;
-  transition: all 0.2s;
+  flex: 1;
 }
 
 .btn-edit {
-  background-color: #2196F3;
+  background-color: #2563eb;
   color: white;
-  flex: 1;
 }
 
 .btn-edit:hover {
-  background-color: #0b7dda;
+  background-color: #1d4ed8;
 }
 
 .btn-delete {
-  background-color: #f44336;
+  background-color: #ef4444;
   color: white;
-  flex: 1;
 }
 
 .btn-delete:hover {
-  background-color: #da190b;
+  background-color: #dc2626;
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 .modal-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(15, 23, 42, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 15;
+  z-index: 20;
   padding: 20px;
 }
 
@@ -506,9 +654,9 @@ padding-left: 400px;
   width: min(720px, 95vw);
   max-height: 92vh;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
 }
 
 .modal-header {
@@ -521,7 +669,7 @@ padding-left: 400px;
 
 .modal-header h3 {
   margin: 0;
-  color: #333;
+  color: #111827;
 }
 
 .modal-close {
@@ -529,27 +677,36 @@ padding-left: 400px;
   background: transparent;
   font-size: 1.4em;
   cursor: pointer;
-  color: #444;
+  color: #475569;
   line-height: 1;
 }
 
 .modal-close:hover {
-  color: #000;
+  color: #111827;
 }
 
 @media (max-width: 1024px) {
-  .editor-content {
-    height: calc(100vh - 110px);
+  .editor-body {
+    grid-template-columns: 1fr;
   }
 
-  .floating-panel {
-    position: absolute;
-    top: auto;
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    width: auto;
-    max-height: 45%;
+  .toolbox {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 12px;
+  }
+
+  .workspace-panel {
+    padding: 8px;
+  }
+
+  .workspace-canvas {
+    height: 60vh;
+  }
+
+  .details-panel {
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
   }
 }
 </style>

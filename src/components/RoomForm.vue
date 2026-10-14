@@ -90,6 +90,55 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label>Paredes a desenhar:</label>
+        <div class="wall-selector" role="group" aria-label="Selecionar paredes do cômodo">
+          <button
+            type="button"
+            class="wall-toggle wall-toggle-top"
+            :class="{ 'wall-toggle-active': form.walls.top }"
+            @click="toggleWall('top')"
+            :aria-pressed="form.walls.top"
+            title="Parede superior"
+          >
+            Superior
+          </button>
+          <button
+            type="button"
+            class="wall-toggle wall-toggle-right"
+            :class="{ 'wall-toggle-active': form.walls.right }"
+            @click="toggleWall('right')"
+            :aria-pressed="form.walls.right"
+            title="Parede direita"
+          >
+            Direita
+          </button>
+          <button
+            type="button"
+            class="wall-toggle wall-toggle-bottom"
+            :class="{ 'wall-toggle-active': form.walls.bottom }"
+            @click="toggleWall('bottom')"
+            :aria-pressed="form.walls.bottom"
+            title="Parede inferior"
+          >
+            Inferior
+          </button>
+          <button
+            type="button"
+            class="wall-toggle wall-toggle-left"
+            :class="{ 'wall-toggle-active': form.walls.left }"
+            @click="toggleWall('left')"
+            :aria-pressed="form.walls.left"
+            title="Parede esquerda"
+          >
+            Esquerda
+          </button>
+          <div class="wall-selector-center">
+            Clique nas paredes
+          </div>
+        </div>
+      </div>
+
       <div class="area-info">
         <strong>Área: {{ (parseFloat(form.width) * parseFloat(form.height)).toFixed(2) }} m²</strong>
       </div>
@@ -128,6 +177,18 @@
 import { ref, watch, computed, defineProps, defineEmits } from 'vue'
 import { usePlantStore } from '../stores/plantStore'
 
+const createDefaultWalls = () => ({
+  top: true,
+  right: true,
+  bottom: true,
+  left: true
+})
+
+const normalizeWalls = (walls) => ({
+  ...createDefaultWalls(),
+  ...(walls || {})
+})
+
 const props = defineProps({
   selectedRoom: {
     type: Object,
@@ -145,7 +206,8 @@ const form = ref({
   x: '',
   y: '',
   includeInBuiltArea: true,
-  color: '#FFFFFF' 
+  color: '#FFFFFF',
+  walls: createDefaultWalls()
 })
 
 const error = ref('')
@@ -154,7 +216,10 @@ const isEditing = computed(() => !!props.selectedRoom)
 
 watch(() => props.selectedRoom, (newRoom) => {
   if (newRoom) {
-    form.value = { ...newRoom }
+    form.value = {
+      ...newRoom,
+      walls: normalizeWalls(newRoom.walls)
+    }
   } else {
     resetForm()
   }
@@ -179,10 +244,15 @@ const handleSubmit = () => {
     return
   }
 
+  const payload = {
+    ...form.value,
+    walls: normalizeWalls(form.value.walls)
+  }
+
   if (isEditing.value) {
-    emit('update-room', form.value)
+    emit('update-room', payload)
   } else {
-    emit('add-room', { ...form.value })
+    emit('add-room', payload)
   }
 
   resetForm()
@@ -193,6 +263,10 @@ const cancelEdit = () => {
   emit('cancel')
 }
 
+const toggleWall = (side) => {
+  form.value.walls[side] = !form.value.walls[side]
+}
+
 function resetForm() {
   form.value = {
     name: '',
@@ -201,7 +275,8 @@ function resetForm() {
     includeInBuiltArea: true,
     x: 0,
     y: 0,
-    color: '#ffffff'
+    color: '#ffffff',
+    walls: createDefaultWalls()
   }
   error.value = ''
 }
@@ -281,6 +356,82 @@ h2 {
   padding: 6px 10px;
   border-radius: 4px;
   flex: 1;
+}
+
+.wall-selector {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border: 1px dashed #c8c8c8;
+  border-radius: 10px;
+  margin: 0 auto;
+  background: #fafafa;
+}
+
+.wall-toggle {
+  position: absolute;
+  border: 2px solid #d0d0d0;
+  background: #f1f1f1;
+  color: #666;
+  font-weight: 600;
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wall-toggle:hover {
+  border-color: #667eea;
+}
+
+.wall-toggle-active {
+  background: #dfffe4;
+  border-color: #4CAF50;
+  color: #2e7d32;
+}
+
+.wall-toggle-top,
+.wall-toggle-bottom {
+  left: 50%;
+  width: 130px;
+  height: 34px;
+  transform: translateX(-50%);
+}
+
+.wall-toggle-left,
+.wall-toggle-right {
+  top: 50%;
+  width: 34px;
+  height: 130px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: translateY(-50%);
+}
+
+.wall-toggle-top {
+  top: 10px;
+}
+
+.wall-toggle-right {
+  right: 10px;
+}
+
+.wall-toggle-bottom {
+  bottom: 10px;
+}
+
+.wall-toggle-left {
+  left: 10px;
+}
+
+.wall-selector-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #888;
+  font-size: 0.85em;
+  text-align: center;
+  pointer-events: none;
 }
 
 .area-info {

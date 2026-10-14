@@ -9,12 +9,10 @@ import PlantEditor from './components/PlantEditor.vue'
 </script>
 
 <style scoped>
-
-
 .app-main {
-  padding: 40px 20px;
-  max-width: 1400px;
-  margin: 0 auto;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
-
 </style>

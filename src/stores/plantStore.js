@@ -9,6 +9,17 @@ const parseNumber = (value, fallback = 0) => {
 }
 
 const createDefaultColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+const DEFAULT_ROOM_WALLS = Object.freeze({
+  top: true,
+  right: true,
+  bottom: true,
+  left: true
+})
+
+const normalizeRoomWalls = (walls) => ({
+  ...DEFAULT_ROOM_WALLS,
+  ...(walls || {})
+})
 
 const normalizeLot = (lot) => {
   if (!lot) return null
@@ -29,14 +40,49 @@ const normalizeRoom = (room) => ({
   x: parseNumber(room.x),
   y: parseNumber(room.y),
   includeInBuiltArea: room.includeInBuiltArea ?? true,
-  color: room.color || createDefaultColor()
+  color: room.color || createDefaultColor(),
+  walls: normalizeRoomWalls(room.walls)
 })
 
+const normalizePlacedImage = (img) => ({
+  id: img.id ?? Date.now(),
+  path: img.path || '',
+  name: img.name || '',
+  scaleMeters: parseNumber(img.scaleMeters, 1),
+  x: parseNumber(img.x),
+  y: parseNumber(img.y),
+  vbWidth: parseNumber(img.vbWidth, 1),
+  vbHeight: parseNumber(img.vbHeight, 1),
+  rotation: parseNumber(img.rotation, 0) // degrees
+})
+
+const _idKey = (v) => String(v == null ? '' : v)
+
+
+
 export const usePlantStore = defineStore('plant', () => {
+
   const lot = ref(null)
   const rooms = ref([])
 
   const guides = ref({ vertical: [], horizontal: [] })
+  const placedImages = ref([])
+
+  const ensureUniquePlacedImages = () => {
+    const seen = new Set()
+    const unique = []
+    // keep the last occurrence (so latest updates win)
+    for (let i = placedImages.value.length - 1; i >= 0; i--) {
+      const p = placedImages.value[i]
+      const k = _idKey(p.id)
+      if (!seen.has(k)) {
+        seen.add(k)
+        unique.push(p)
+      }
+    }
+    unique.reverse()
+    placedImages.value = unique
+  }
 
   const persistProject = () => {
     if (typeof window === 'undefined') return
@@ -47,7 +93,8 @@ export const usePlantStore = defineStore('plant', () => {
         version: 1,
         lot: lot.value,
         rooms: rooms.value,
-        guides: guides.value
+        guides: guides.value,
+        placedImages: placedImages.value
       })
     )
   }
@@ -73,6 +120,16 @@ export const usePlantStore = defineStore('plant', () => {
       guides.value = { vertical: [], horizontal: [] }
     }
 
+    // placed images
+    if (Array.isArray(projectData.placedImages)) {
+      placedImages.value = projectData.placedImages.map(normalizePlacedImage)
+    } else {
+      placedImages.value = []
+    }
+
+    // ensure no duplicate ids after load
+    ensureUniquePlacedImages()
+
     persistProject()
     return true
   }
@@ -97,7 +154,8 @@ export const usePlantStore = defineStore('plant', () => {
         version: 1,
         lot: lot.value,
         rooms: rooms.value,
-        guides: guides.value
+        guides: guides.value,
+        placedImages: placedImages.value
       },
       null,
       2
@@ -113,6 +171,7 @@ export const usePlantStore = defineStore('plant', () => {
     }
     rooms.value = []
     guides.value = { vertical: [], horizontal: [] }
+    placedImages.value = []
     persistProject()
   }
 
@@ -212,9 +271,41 @@ export const usePlantStore = defineStore('plant', () => {
     lot.value = null
     rooms.value = []
     guides.value = { vertical: [], horizontal: [] }
+    placedImages.value = []
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(STORAGE_KEY)
     }
+  }
+
+  // placed images management
+  const addPlacedImage = (img) => {
+    const newImg = normalizePlacedImage(img)
+    placedImages.value.push(newImg)
+    // remove duplicates (keep last occurrence)
+    ensureUniquePlacedImages()
+    persistProject()
+    return newImg
+  }
+
+  const updatePlacedImage = (id, updated) => {
+    const idKey = _idKey(id)
+    const idx = placedImages.value.findIndex(p => _idKey(p.id) === idKey)
+    if (idx !== -1) {
+      // mutate existing object to preserve references and avoid duplications in the UI
+      const existing = placedImages.value[idx]
+      const normalized = normalizePlacedImage(updated)
+      // assign normalized fields except id (use provided id)
+      Object.assign(existing, normalized, { id })
+
+      // ensure no duplicates after update
+      ensureUniquePlacedImages()
+      persistProject()
+    }
+  }
+
+  const deletePlacedImage = (id) => {
+    placedImages.value = placedImages.value.filter(p => p.id !== id)
+    persistProject()
   }
 
   loadProjectFromStorage()
@@ -223,6 +314,7 @@ export const usePlantStore = defineStore('plant', () => {
     lot,
     rooms,
     guides,
+    placedImages,
     createLot,
     addRoom,
     updateRoom,
@@ -235,6 +327,9 @@ export const usePlantStore = defineStore('plant', () => {
     getTotalArea,
     resetProject,
     exportProject,
-    loadProjectFromData
+    loadProjectFromData,
+    addPlacedImage,
+    updatePlacedImage,
+    deletePlacedImage
   }
 })

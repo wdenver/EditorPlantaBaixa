@@ -1,0 +1,6 @@
+/svgs/planta1.png|planta1|1
+/svgs/planta2.png|planta2|1
+/svgs/planta3.png|planta3|1
+/svgs/piscina1.png|piscina1|5
+/svgs/carro.png|carro|5
+/svgs/cama_queen.svg|cama queen|1
