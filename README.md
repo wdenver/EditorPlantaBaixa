@@ -15,6 +15,10 @@ Um aplicativo web interativo desenvolvido com Vue.js 3 para criar e organizar pl
 - **Cálculo de Áreas**: Apenas cômodos exibem área no desenho e podem entrar no total de área construída, conforme a opção “Incluir na área construída”.
 - **Painel de propriedades contextual**: Edite dimensões reais, preenchimento, opacidade e traço do terreno ou do cômodo selecionado
 - **Zoom e navegação**: Use o menu de zoom, a roda do mouse e o arraste com o botão central
+- **Guias de alinhamento**: Crie, edite e remova guias verticais e horizontais no canvas
+- **Biblioteca de imagens**: Insira imagens disponíveis na paleta por clique ou arrastando-as para a planta
+- **Exportação SVG**: Baixe uma versão vetorial da planta, incluindo as imagens posicionadas e sem os controles de seleção
+- **Salvar e abrir projetos**: Exporte o projeto editável em JSON e importe-o novamente pela barra superior
 - **Paredes físicas**: Retângulos centralizados nas arestas dos cômodos, com espessura inicial de 15 cm, editável por lado e proporcional ao zoom. Cantos e trechos compartilhados são unidos visualmente, sem linhas internas.
 - **Cores globais das paredes**: Preenchimento cinza (`#808080`) e borda escura (`#222222`), configuráveis para todo o projeto. O contorno fino permanece com 1 px na tela.
 - **Espessura por aresta**: Cômodos usam centímetros; terreno, móveis e marcações mantêm seus traços em pixels.
@@ -87,6 +91,28 @@ npm run dev
 - A roda do mouse sobre o canvas aproxima ou afasta a visualização; arraste com o botão central para mover o canvas.
 - O percentual representa o zoom em relação à escala base, sem alterar as dimensões reais armazenadas em metros.
 
+8. Guias, imagens e exportação
+- Use **⌖ Guias** na barra inferior para adicionar guias verticais/horizontais, alterar suas posições ou removê-las. O encaixe em guias pode ser ativado separadamente no menu **Encaixe e grid**.
+- Insira imagens da paleta **Imagens SVG** clicando em um item ou arrastando-o para o canvas. Imagens posicionadas podem ser movidas e gerenciadas pelo menu de contexto.
+- Clique em **Exportar SVG** na barra inferior para baixar a representação vetorial da planta. O arquivo inclui as imagens posicionadas e não inclui alças nem contornos de seleção.
+- **Salvar** baixa o projeto editável em JSON; **Abrir projeto** importa um arquivo JSON existente. **Novo projeto** inicia um projeto vazio após confirmação.
+
+### Atalhos de visualização
+
+Os atalhos abaixo não são acionados quando o foco está em um campo de edição.
+
+| Atalho | Ação |
+|---|---|
+| `Ctrl`/`⌘` + `+` | Aumentar zoom |
+| `Ctrl`/`⌘` + `-` | Diminuir zoom |
+| `Shift` + `1` | Ajustar canvas à área visível |
+| `Shift` + `0` | Zoom em 100% |
+| `Shift` + `2` | Zoom na seleção |
+| `Shift` + `G` | Mostrar ou ocultar o grid |
+| `Shift` + `R` | Mostrar ou ocultar as réguas |
+| `Shift` + `'` | Mostrar ou ocultar a grade de pixels |
+| `Ctrl` + `Shift` + `'` | Alternar snap no grid |
+
 Observação: todas as alterações são aplicadas ao estado local da aplicação (sem backend por padrão) e são refletidas imediatamente na visualização do canvas.
 
 O tipo, a aparência e a ordem são preservados ao salvar, reabrir ou recarregar o projeto. A coleção JSON `rooms` foi mantida por compatibilidade e agora contém os três tipos de objeto; objetos antigos sem `type` são tratados como cômodos. Imagens da paleta continuam na camada de imagens existente.
@@ -103,12 +129,12 @@ O tipo, a aparência e a ordem são preservados ao salvar, reabrir ou recarregar
 ## 📊 Interface
 
 ### Painel Lateral (Esquerda)
-- Recursos visuais e imagens SVG
-- Ação para criar cômodos e resumo de áreas do projeto
+- Ações para criar cômodos, móveis e marcações, biblioteca de imagens e configurações globais das paredes
+- Resumo de áreas e quantidade de cômodos do projeto
 
 ### Área Principal (Centro)
 - Canvas central com barra de ferramentas inferior
-- Navegação por zoom e pan, grades, guias e réguas
+- Navegação por zoom e pan, grades, guias e réguas; barra para adicionar objetos, gerenciar guias e exportar em SVG
 
 ### Painel de Propriedades (Direita)
 - Dimensões reais do terreno ou cômodo selecionado

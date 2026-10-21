@@ -1,116 +1,82 @@
 # ⚡ Quick Start
 
-## Instalação Rápida (2 minutos)
+## Instalação
 
 ```bash
-# 1. Instale as dependências
 npm install
-
-# 2. Inicie o servidor de desenvolvimento
 npm run dev
-
-# 3. Abra seu navegador:
-# http://localhost:5173
 ```
 
-## Primeiros Passos
+Abra no navegador o endereço informado pelo Vite (normalmente
+`http://localhost:5173`).
 
-### 1️⃣ Criar um Lote
-```
-Largura: 10 metros
-Altura: 15 metros
-[Clique em "Criar Lote"]
-```
+## Criar uma planta
 
-### 2️⃣ Adicionar seu Primeiro Cômodo
-```
-Nome: Sala de Estar
-Largura: 5 metros
-Altura: 4 metros
-Posição X: 0 metros
-Posição Y: 0 metros
-Cor: [escolha uma cor]
-[Clique em "Adicionar Cômodo"]
-```
+1. Informe largura e altura do lote em metros e clique em **Criar Lote**.
+2. Clique em **Novo cômodo** no painel **Recursos** ou em **＋ Cômodo** na
+   barra inferior. Preencha nome, dimensões e posição e confirme.
+3. Selecione o cômodo para editar suas dimensões, aparência e paredes no painel
+   **Propriedades** à direita. Também é possível arrastar o objeto no canvas e
+   redimensioná-lo pelas alças nas bordas.
+4. Use **＋ Adicionar móvel** ou **＋ Adicionar marcação** para inserir outros
+   objetos. A paleta **Imagens SVG** permite inserir as imagens disponíveis por
+   clique ou arrastando-as para a planta.
+5. Clique em **Exportar SVG** na barra inferior para baixar uma imagem vetorial
+   da planta. Use **Salvar** no topo para baixar o projeto editável em JSON.
 
-### 3️⃣ Adicionar mais Cômodos
-```
-Nome: Quarto 1
-Largura: 4 metros
-Altura: 3.5 metros
-Posição X: 5 metros
-Posição Y: 0 metros
-```
+## Controles rápidos
 
-### 4️⃣ Visualizar e Interagir
-- Veja a planta no canvas à direita
-- Clique e arraste para mover os cômodos
-- Use 🔍+ e 🔍- para zoom
-- Clique ✏️ para editar um cômodo
-- Clique 🗑️ para deletar um cômodo
+| Ação | Como fazer |
+|---|---|
+| Selecionar ou mover | Clique no objeto; arraste para mover |
+| Redimensionar | Arraste uma das alças brancas nas bordas do objeto |
+| Editar pelo formulário | Dê duplo clique no objeto |
+| Abrir ações do objeto | Clique com o botão direito no objeto |
+| Aproximar ou afastar | Role a roda do mouse sobre o canvas |
+| Mover a visualização | Arraste com o botão central do mouse |
+| Ajustar zoom | Clique no percentual no topo do canvas |
+| Ajustar à área visível | Use **⛶** na barra inferior ou **Zoom para caber** no menu de zoom |
+| Configurar grade e encaixe | Abra **Encaixe e grid** ao lado do zoom |
+| Adicionar e editar guias | Clique em **⌖ Guias** na barra inferior |
+| Importar projeto | Clique em **Abrir projeto** e selecione um arquivo JSON salvo |
+| Começar outro projeto | Clique em **Novo projeto** |
 
-## 🎮 Controles
+### Atalhos de teclado
 
-| Ação | Como Fazer |
-|------|-----------|
-| Mover cômodo | Clique e arraste no canvas |
-| Aumentar zoom | Clique 🔍+ |
-| Diminuir zoom | Clique 🔍- |
-| Editar cômodo | Clique ✏️ na lista |
-| Deletar cômodo | Clique 🗑️ na lista |
-| Editar lote | Clique "Editar Lote" |
-| Limpar tudo | Clique "Limpar Projeto" |
+Os atalhos de visualização funcionam quando o foco não está em um campo de
+edição.
 
-## 📝 Exemplo Completo de Planta Simples
+| Atalho | Ação |
+|---|---|
+| `Ctrl`/`⌘` + `+` | Aumentar zoom |
+| `Ctrl`/`⌘` + `-` | Diminuir zoom |
+| `Shift` + `1` | Ajustar canvas à área visível |
+| `Shift` + `0` | Zoom em 100% |
+| `Shift` + `2` | Zoom na seleção |
+| `Shift` + `G` | Mostrar ou ocultar o grid |
+| `Shift` + `R` | Mostrar ou ocultar as réguas |
+| `Shift` + `'` | Mostrar ou ocultar a grade de pixels |
+| `Ctrl` + `Shift` + `'` | Alternar snap no grid |
 
-**Lote: 12m × 10m**
+## Dicas
 
-1. **Sala (5m × 4m)** - Posição: 0, 0
-2. **Cozinha (3m × 3m)** - Posição: 5, 0
-3. **Quarto 1 (4m × 3.5m)** - Posição: 0, 4
-4. **Banheiro (2m × 2m)** - Posição: 4, 4
+- O menu **Encaixe e grid** permite configurar o espaçamento do grid e ativar
+  encaixes em grid, objetos e guias separadamente.
+- Para mover ou redimensionar sem encaixes, marque **Desabilitar todos os
+  snaps**. Os limites do lote continuam valendo.
+- O painel **Paredes — configurações globais** controla as cores das paredes dos
+  cômodos. A espessura de cada lado é configurada nas propriedades do cômodo.
+- No painel de propriedades, marque **Incluir na área construída** para
+  controlar quais cômodos entram no total do projeto.
+- **Enviar para frente** e **Enviar para trás** mudam a ordem de desenho entre
+  objetos do mesmo tipo.
 
-Área total usada: ~33.5 m² de 120 m²
-
-## 🔧 Troubleshooting
-
-### Porta não abre em http://localhost:5173?
-```bash
-# Verifique se o servidor está rodando
-npm run dev
-
-# Tente outra porta
-npm run dev -- --port 3000
-```
-
-### Erro de módulos não encontrados?
-```bash
-# Limpe node_modules e reinstale
-rm -rf node_modules
-npm install
-```
-
-### Cores estranhas ou não aparecem?
-```bash
-# Limpe o cache do navegador (Ctrl+Shift+Delete)
-# Recarregue a página (Ctrl+F5)
-```
-
-## 📚 Próximos Passos
-
-- Leia [README.md](README.md) para documentação completa
-- Veja [DEVELOPMENT.md](DEVELOPMENT.md) para ideias de melhorias
-- Explore o código em `src/components/` e `src/stores/`
-
-## 🚀 Build para Produção
+## Build para produção
 
 ```bash
 npm run build
-
-# Saída em: dist/
-# Deploy o conteúdo de `dist/` para seu servidor
 ```
 
----
+Os arquivos de produção são gerados em `dist/`.
 
-**Divirta-se criando plantas! 🏠**
+Para mais detalhes, consulte o [README.md](README.md).
