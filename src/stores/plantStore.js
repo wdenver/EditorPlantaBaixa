@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { OBJECT_TYPES, getObjectDefaults, normalizeObjectType } from '../objectTypes.js'
+import { normalizeWallSettings, normalizeWallThicknesses } from '../walls.js'
 
 const STORAGE_KEY = 'editor-planta-project-v1'
 
@@ -15,10 +17,16 @@ const DEFAULT_ROOM_WALLS = Object.freeze({
   bottom: true,
   left: true
 })
-
 const normalizeRoomWalls = (walls) => ({
   ...DEFAULT_ROOM_WALLS,
   ...(walls || {})
+})
+
+const normalizeEdgeWidths = (edgeWidths, defaultWidth = 5) => ({
+  top: parseNumber(edgeWidths?.top, defaultWidth),
+  right: parseNumber(edgeWidths?.right, defaultWidth),
+  bottom: parseNumber(edgeWidths?.bottom, defaultWidth),
+  left: parseNumber(edgeWidths?.left, defaultWidth)
 })
 
 const normalizeLot = (lot) => {
@@ -28,21 +36,34 @@ const normalizeLot = (lot) => {
     id: lot.id ?? Date.now(),
     width: parseNumber(lot.width),
     height: parseNumber(lot.height),
+    color: lot.color || '#a0f0a0',
+    fillOpacity: parseNumber(lot.fillOpacity, 1),
+    strokeColor: lot.strokeColor || '#333333',
+    edgeWidths: normalizeEdgeWidths(lot.edgeWidths, 2),
     createdAt: lot.createdAt || new Date().toLocaleString()
   }
 }
 
-const normalizeRoom = (room) => ({
-  id: room.id ?? Date.now(),
-  name: room.name || 'Cômodo',
-  width: parseNumber(room.width),
-  height: parseNumber(room.height),
-  x: parseNumber(room.x),
-  y: parseNumber(room.y),
-  includeInBuiltArea: room.includeInBuiltArea ?? true,
-  color: room.color || createDefaultColor(),
-  walls: normalizeRoomWalls(room.walls)
-})
+const normalizeRoom = (room) => {
+  const type = normalizeObjectType(room.type)
+  const defaults = getObjectDefaults(type)
+  return {
+    id: room.id ?? Date.now(),
+    type,
+    name: room.name || (type === 'marking' ? '' : OBJECT_TYPES.find(option => option.value === type).label),
+    width: parseNumber(room.width),
+    height: parseNumber(room.height),
+    x: parseNumber(room.x),
+    y: parseNumber(room.y),
+    includeInBuiltArea: room.includeInBuiltArea ?? true,
+    color: room.color || (type === 'room' ? createDefaultColor() : defaults.color),
+    fillOpacity: parseNumber(room.fillOpacity, defaults.fillOpacity),
+    strokeColor: room.strokeColor || defaults.strokeColor,
+    edgeWidths: normalizeEdgeWidths(room.edgeWidths, defaults.edgeWidths.top),
+    wallThicknesses: normalizeWallThicknesses(room.wallThicknesses),
+    walls: normalizeRoomWalls(room.walls)
+  }
+}
 
 const normalizePlacedImage = (img) => ({
   id: img.id ?? Date.now(),
@@ -64,9 +85,13 @@ export const usePlantStore = defineStore('plant', () => {
 
   const lot = ref(null)
   const rooms = ref([])
+  const orderedObjects = computed(() => OBJECT_TYPES.flatMap(
+    option => rooms.value.filter(room => room.type === option.value)
+  ))
 
   const guides = ref({ vertical: [], horizontal: [] })
   const placedImages = ref([])
+  const wallSettings = ref(normalizeWallSettings())
 
   const ensureUniquePlacedImages = () => {
     const seen = new Set()
@@ -90,7 +115,8 @@ export const usePlantStore = defineStore('plant', () => {
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        version: 1,
+        version: 2,
+        wallSettings: wallSettings.value,
         lot: lot.value,
         rooms: rooms.value,
         guides: guides.value,
@@ -102,10 +128,16 @@ export const usePlantStore = defineStore('plant', () => {
   const loadProjectFromData = (projectData) => {
     if (!projectData || typeof projectData !== 'object') return false
 
-    lot.value = normalizeLot(projectData.lot)
-    rooms.value = Array.isArray(projectData.rooms)
-      ? projectData.rooms.map(normalizeRoom)
+    const nextWallSettings = normalizeWallSettings(projectData.wallSettings)
+    const nextRooms = Array.isArray(projectData.rooms)
+      ? projectData.rooms.map(room => normalizeRoom({
+        ...room,
+        wallThicknesses: projectData.version >= 2 ? room.wallThicknesses : undefined
+      }))
       : []
+    wallSettings.value = nextWallSettings
+    lot.value = normalizeLot(projectData.lot)
+    rooms.value = nextRooms
 
     // load guides if present
     if (projectData.guides && typeof projectData.guides === 'object') {
@@ -142,8 +174,8 @@ export const usePlantStore = defineStore('plant', () => {
 
     try {
       return loadProjectFromData(JSON.parse(savedProject))
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY)
+    } catch (error) {
+      console.error('Não foi possível carregar o projeto salvo.', error)
       return false
     }
   }
@@ -151,7 +183,8 @@ export const usePlantStore = defineStore('plant', () => {
   const exportProject = () => {
     return JSON.stringify(
       {
-        version: 1,
+        version: 2,
+        wallSettings: wallSettings.value,
         lot: lot.value,
         rooms: rooms.value,
         guides: guides.value,
@@ -167,11 +200,27 @@ export const usePlantStore = defineStore('plant', () => {
       id: Date.now(),
       width: parseNumber(width),
       height: parseNumber(height),
+      color: '#a0f0a0',
+      fillOpacity: 1,
+      strokeColor: '#333333',
+      edgeWidths: normalizeEdgeWidths(null, 2),
       createdAt: new Date().toLocaleString()
     }
     rooms.value = []
     guides.value = { vertical: [], horizontal: [] }
     placedImages.value = []
+    wallSettings.value = normalizeWallSettings()
+    persistProject()
+  }
+
+  const updateWallSettings = (settings) => {
+    wallSettings.value = normalizeWallSettings({ ...wallSettings.value, ...settings })
+    persistProject()
+  }
+
+  const updateLot = (updatedLot) => {
+    if (!lot.value) return
+    lot.value = normalizeLot({ ...lot.value, ...updatedLot })
     persistProject()
   }
 
@@ -187,7 +236,7 @@ export const usePlantStore = defineStore('plant', () => {
     if (index !== -1) {
       rooms.value[index] = {
         ...rooms.value[index],
-        ...normalizeRoom(updatedRoom),
+        ...normalizeRoom({ ...rooms.value[index], ...updatedRoom }),
         id
       }
       persistProject()
@@ -196,6 +245,26 @@ export const usePlantStore = defineStore('plant', () => {
 
   const deleteRoom = (id) => {
     rooms.value = rooms.value.filter(r => r.id !== id)
+    persistProject()
+  }
+
+  const canMoveObject = (id, direction) => {
+    const object = rooms.value.find(room => room.id === id)
+    if (!object || ![-1, 1].includes(direction)) return false
+    const peers = rooms.value.filter(room => room.type === object.type)
+    const index = peers.findIndex(room => room.id === id)
+    return index + direction >= 0 && index + direction < peers.length
+  }
+
+  const moveObject = (id, direction) => {
+    if (!canMoveObject(id, direction)) return
+    const object = rooms.value.find(room => room.id === id)
+    const peers = rooms.value.filter(room => room.type === object.type)
+    const peer = peers[peers.findIndex(room => room.id === id) + direction]
+    const index = rooms.value.indexOf(object)
+    const peerIndex = rooms.value.indexOf(peer)
+    rooms.value[index] = peer
+    rooms.value[peerIndex] = object
     persistProject()
   }
 
@@ -264,7 +333,7 @@ export const usePlantStore = defineStore('plant', () => {
   }
 
   const getTotalArea = computed(() => {
-    return rooms.value.reduce((total, room) => total + (room.includeInBuiltArea ? room.width * room.height : 0), 0)
+    return rooms.value.reduce((total, room) => total + (room.type === 'room' && room.includeInBuiltArea ? room.width * room.height : 0), 0)
   })
 
   const resetProject = () => {
@@ -272,6 +341,7 @@ export const usePlantStore = defineStore('plant', () => {
     rooms.value = []
     guides.value = { vertical: [], horizontal: [] }
     placedImages.value = []
+    wallSettings.value = normalizeWallSettings()
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(STORAGE_KEY)
     }
@@ -313,9 +383,15 @@ export const usePlantStore = defineStore('plant', () => {
   return {
     lot,
     rooms,
+    orderedObjects,
+    canMoveObject,
+    moveObject,
     guides,
     placedImages,
+    wallSettings,
+    updateWallSettings,
     createLot,
+    updateLot,
     addRoom,
     updateRoom,
     deleteRoom,

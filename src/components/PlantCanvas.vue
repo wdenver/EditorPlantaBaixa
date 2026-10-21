@@ -1,15 +1,123 @@
 <template>
   <div class="plant-canvas-container">
-    <h3>Visualização da Planta</h3>
-    <div class="canvas-wrapper" @mousedown="startPan">
-      <div class="canvas-controls">
-        <button @click="zoomIn" class="btn-secondary" title="Aumentar zoom">＋</button>
-        <button @click="zoomOut" class="btn-secondary" title="Diminuir zoom">－</button>
-        <button @click="resetZoom" class="btn-secondary" title="Resetar zoom">↺</button>
-        <span class="zoom-level">{{ Math.round(scale * 100) }}%</span>
+    <div ref="canvasWrapper" class="canvas-wrapper" @mousedown="startPan" @wheel="handleWheel">
+      <div class="canvas-controls" @mousedown.stop>
+        <button
+          type="button"
+          class="zoom-menu-trigger"
+          :aria-expanded="zoomMenuOpen"
+          @click.stop="zoomMenuOpen = !zoomMenuOpen; snapMenuOpen = false"
+        >
+          {{ Math.round(scale / BASE_SCALE * 100) }}%
+          <span aria-hidden="true">⌄</span>
+        </button>
+        <div v-if="zoomMenuOpen" class="zoom-menu" @click.stop>
+          <button type="button" class="zoom-menu-item" @click="changeZoom(10)">
+            Aumentar zoom <kbd>Ctrl++</kbd>
+          </button>
+          <button type="button" class="zoom-menu-item" @click="changeZoom(-10)">
+            Diminuir zoom <kbd>Ctrl+-</kbd>
+          </button>
+          <div class="zoom-menu-divider"></div>
+          <button type="button" class="zoom-menu-item" @click="fitCanvas">
+            Zoom para caber <kbd>Shift+1</kbd>
+          </button>
+          <button type="button" class="zoom-menu-item" @click="setZoom(50)">
+            Zoom em 50%
+          </button>
+          <button type="button" class="zoom-menu-item" @click="setZoom(100)">
+            Zoom em 100% <kbd>Shift+0</kbd>
+          </button>
+          <button type="button" class="zoom-menu-item" @click="setZoom(200)">
+            Zoom em 200%
+          </button>
+          <button type="button" class="zoom-menu-item" @click="fitSelection">
+            Zoom na seleção <kbd>Shift+2</kbd>
+          </button>
+          <div class="zoom-menu-divider"></div>
+          <button type="button" class="zoom-menu-item" @click="setPixelView(1)">
+            <span>{{ pixelView === 100 ? '✓ ' : '' }}Visualização de pixels 1x</span>
+          </button>
+          <button type="button" class="zoom-menu-item" @click="setPixelView(2)">
+            <span>{{ pixelView === 200 ? '✓ ' : '' }}Visualização de pixels 2x</span>
+          </button>
+          <div class="zoom-menu-divider"></div>
+          <label class="zoom-menu-toggle">
+            <input v-model="showPixelGrid" type="checkbox" />
+            Grade de pixels <kbd>Shift+'</kbd>
+          </label>
+          <div class="zoom-menu-divider"></div>
+          <label class="zoom-menu-toggle">
+            <input v-model="showRulers" type="checkbox" />
+            Réguas <kbd>Shift+R</kbd>
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="showOutlines" type="checkbox" />
+            Contornos
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="showRoomNames" type="checkbox" />
+            Nomes dos cômodos
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="showRoomAreas" type="checkbox" />
+            Áreas
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="showRoomDimensions" type="checkbox" />
+            Dimensões
+          </label>
+        </div>
+        <button
+          type="button"
+          class="zoom-menu-trigger"
+          :aria-expanded="snapMenuOpen"
+          @click.stop="snapMenuOpen = !snapMenuOpen; zoomMenuOpen = false"
+        >
+          Encaixe e grid <span aria-hidden="true">⌄</span>
+        </button>
+        <div v-if="snapMenuOpen" class="zoom-menu" @click.stop>
+          <label class="zoom-menu-toggle">
+            <input v-model="disableAllSnaps" type="checkbox" />
+            Desabilitar todos os snaps
+          </label>
+          <div class="zoom-menu-divider"></div>
+          <div class="zoom-menu-label">Habilitar snaps</div>
+          <label class="zoom-menu-toggle">
+            <input v-model="snapOptions.grid" type="checkbox" />
+            Snap no grid <kbd>Ctrl+Shift+'</kbd>
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="snapOptions.rooms" type="checkbox" />
+            Snap nas paredes e arestas de outros objetos
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="snapOptions.verticalGuides" type="checkbox" />
+            Snap nas guias verticais
+          </label>
+          <label class="zoom-menu-toggle">
+            <input v-model="snapOptions.horizontalGuides" type="checkbox" />
+            Snap nas guias horizontais
+          </label>
+          <div class="zoom-menu-divider"></div>
+          <label class="zoom-menu-toggle">
+            <input v-model="showLayoutGrid" type="checkbox" />
+            Mostrar grid <kbd>Shift+G</kbd>
+          </label>
+          <label class="grid-spacing-field">
+            Espaçamento do grid (m)
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              :value="gridSpacing"
+              @change="updateGridSpacing"
+            />
+          </label>
+        </div>
       </div>
 
-      <div class="guides-controls">
+      <div v-if="showGuidePanel" class="guides-controls" @click.stop>
         <div class="guides-column">
         <h4>Guias Verticais</h4>
         <div v-if="plantStore.guides.vertical.length === 0" class="muted">Nenhuma guia vertical</div>
@@ -53,11 +161,40 @@
           class="plant-canvas"
           :width="canvasWidth"
           :height="canvasHeight"
-          @click="closeContextMenu"
+          @click="handleCanvasClick"
           @mousemove="handleMouseMove"
           @mouseup="handleMouseUp"
           @mouseleave="handleMouseUp"
         >
+          <defs>
+            <pattern
+              id="layout-grid-pattern"
+              :width="gridSpacing * scale"
+              :height="gridSpacing * scale"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                :d="`M ${gridSpacing * scale} 0 L 0 0 0 ${gridSpacing * scale}`"
+                fill="none"
+                stroke="#999"
+                stroke-width="1"
+              />
+            </pattern>
+            <pattern
+              id="pixel-grid-pattern"
+              :width="Math.max(scale / 10, 1)"
+              :height="Math.max(scale / 10, 1)"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                :d="`M ${Math.max(scale / 10, 1)} 0 L 0 0 0 ${Math.max(scale / 10, 1)}`"
+                fill="none"
+                stroke="#64748b"
+                stroke-width="0.5"
+                opacity="0.3"
+              />
+            </pattern>
+          </defs>
 
           <!-- Background - Lote -->
           <rect
@@ -65,32 +202,80 @@
             y="0"
             :width="plantStore.lot.width * scale"
             :height="plantStore.lot.height * scale"
-            fill="#a0f0a0"
-            stroke="#333"
-            stroke-width="2"
+            :fill="plantStore.lot.color"
+            :fill-opacity="plantStore.lot.fillOpacity"
+            stroke="none"
+            @click.stop="selectLot"
+          />
+          <rect
+            v-if="showPixelGrid"
+            x="0"
+            y="0"
+            :width="plantStore.lot.width * scale"
+            :height="plantStore.lot.height * scale"
+            fill="url(#pixel-grid-pattern)"
+            pointer-events="none"
+          />
+          <line
+            v-if="showOutlines"
+            x1="0"
+            y1="0"
+            :x2="plantStore.lot.width * scale"
+            y2="0"
+            :stroke="plantStore.lot.strokeColor"
+            :stroke-width="plantStore.lot.edgeWidths.top"
+            pointer-events="none"
+          />
+          <line
+            v-if="showOutlines"
+            :x1="plantStore.lot.width * scale"
+            y1="0"
+            :x2="plantStore.lot.width * scale"
+            :y2="plantStore.lot.height * scale"
+            :stroke="plantStore.lot.strokeColor"
+            :stroke-width="plantStore.lot.edgeWidths.right"
+            pointer-events="none"
+          />
+          <line
+            v-if="showOutlines"
+            x1="0"
+            :y1="plantStore.lot.height * scale"
+            :x2="plantStore.lot.width * scale"
+            :y2="plantStore.lot.height * scale"
+            :stroke="plantStore.lot.strokeColor"
+            :stroke-width="plantStore.lot.edgeWidths.bottom"
+            pointer-events="none"
+          />
+          <line
+            v-if="showOutlines"
+            x1="0"
+            y1="0"
+            x2="0"
+            :y2="plantStore.lot.height * scale"
+            :stroke="plantStore.lot.strokeColor"
+            :stroke-width="plantStore.lot.edgeWidths.left"
+            pointer-events="none"
+          />
+          <rect
+            v-if="selectedElementType === 'lot'"
+            class="lot-selection-outline"
+            x="0"
+            y="0"
+            :width="plantStore.lot.width * scale"
+            :height="plantStore.lot.height * scale"
+            fill="none"
+            stroke="#1687f8"
+            stroke-width="1.5"
+            stroke-dasharray="5 4"
+            pointer-events="none"
           />
 
           <!-- Grid -->
-          <g class="grid" opacity="0.1">
-            <line
-              v-for="i in Math.ceil(plantStore.lot.width)"
-              :key="`vline-${i}`"
-              :x1="i * scale"
-              :y1="0"
-              :x2="i * scale"
-              :y2="plantStore.lot.height * scale"
-              stroke="#999"
-              stroke-width="1"
-            />
-            <line
-              v-for="i in Math.ceil(plantStore.lot.height)"
-              :key="`hline-${i}`"
-              :x1="0"
-              :y1="i * scale"
-              :x2="plantStore.lot.width * scale"
-              :y2="i * scale"
-              stroke="#999"
-              stroke-width="1"
+          <g v-if="showLayoutGrid" class="grid" opacity="0.1">
+            <rect
+              :width="plantStore.lot.width * scale"
+              :height="plantStore.lot.height * scale"
+              fill="url(#layout-grid-pattern)"
             />
           </g>
 
@@ -120,12 +305,51 @@
             />
           </g>
 
-          <!-- Rooms -->
+          <g class="room-fills" pointer-events="none">
+            <rect
+              v-for="room in roomObjects"
+              :key="room.id"
+              :x="room.x * scale"
+              :y="room.y * scale"
+              :width="room.width * scale"
+              :height="room.height * scale"
+              :fill="room.color"
+              :fill-opacity="room.fillOpacity"
+            />
+          </g>
+
+          <g v-if="showOutlines" class="room-walls" pointer-events="none">
+            <!-- Painting all fills last removes internal seams, leaving a 1 px outer border. -->
+            <g :stroke="plantStore.wallSettings.strokeColor" stroke-width="2" fill="none">
+              <rect
+                v-for="(wall, index) in wallRectangles"
+                :key="index"
+                :x="wall.x * scale"
+                :y="wall.y * scale"
+                :width="wall.width * scale"
+                :height="wall.height * scale"
+              />
+            </g>
+            <g :fill="plantStore.wallSettings.fillColor">
+              <rect
+                v-for="(wall, index) in wallRectangles"
+                :key="index"
+                :x="wall.x * scale"
+                :y="wall.y * scale"
+                :width="wall.width * scale"
+                :height="wall.height * scale"
+              />
+            </g>
+          </g>
+
+          <!-- Objects ordered by type and stacking position -->
           <g class="rooms">
             <g
-              v-for="room in plantStore.rooms"
+              v-for="room in plantStore.orderedObjects"
               :key="room.id"
               class="room"
+              :class="{ 'room-selected': selectedRoomId === room.id }"
+              @click.stop="selectRoom(room)"
               @mousedown="startDrag($event, room)"
               @dblclick="openRoomEditor(room)"
               @contextmenu.prevent.stop="openContextMenu($event, room)"
@@ -136,43 +360,64 @@
                 :y="room.y * scale"
                 :width="room.width * scale"
                 :height="room.height * scale"
-                :fill="room.color"
-                fill-opacity="1.0"
+                :fill="room.type === 'room' ? 'transparent' : room.color"
+                :fill-opacity="room.type === 'room' ? 1 : room.fillOpacity"
                 stroke="none"
                 rx="0"
                 class="room-rect"
               />
               <line
-                v-if="hasWall(room, 'top')"
+                v-if="room.type !== 'room' && showOutlines && hasWall(room, 'top')"
                 :x1="room.x * scale"
                 :y1="room.y * scale"
                 :x2="(room.x + room.width) * scale"
                 :y2="room.y * scale"
                 class="room-wall"
+                :stroke="room.strokeColor"
+                :stroke-width="room.edgeWidths.top"
               />
               <line
-                v-if="hasWall(room, 'right')"
+                v-if="room.type !== 'room' && showOutlines && hasWall(room, 'right')"
                 :x1="(room.x + room.width) * scale"
                 :y1="room.y * scale"
                 :x2="(room.x + room.width) * scale"
                 :y2="(room.y + room.height) * scale"
                 class="room-wall"
+                :stroke="room.strokeColor"
+                :stroke-width="room.edgeWidths.right"
               />
               <line
-                v-if="hasWall(room, 'bottom')"
+                v-if="room.type !== 'room' && showOutlines && hasWall(room, 'bottom')"
                 :x1="room.x * scale"
                 :y1="(room.y + room.height) * scale"
                 :x2="(room.x + room.width) * scale"
                 :y2="(room.y + room.height) * scale"
                 class="room-wall"
+                :stroke="room.strokeColor"
+                :stroke-width="room.edgeWidths.bottom"
               />
               <line
-                v-if="hasWall(room, 'left')"
+                v-if="room.type !== 'room' && showOutlines && hasWall(room, 'left')"
                 :x1="room.x * scale"
                 :y1="room.y * scale"
                 :x2="room.x * scale"
                 :y2="(room.y + room.height) * scale"
                 class="room-wall"
+                :stroke="room.strokeColor"
+                :stroke-width="room.edgeWidths.left"
+              />
+              <rect
+                v-if="selectedRoomId === room.id"
+                class="room-selection-outline"
+                :x="room.x * scale"
+                :y="room.y * scale"
+                :width="room.width * scale"
+                :height="room.height * scale"
+                fill="none"
+                stroke="#1687f8"
+                stroke-width="1.5"
+                stroke-dasharray="5 4"
+                pointer-events="none"
               />
 
               <!-- Resize handles -->
@@ -225,40 +470,6 @@
                 @mousedown.stop="startResize($event, room, 'bottom')"
               />
 
-              <!-- Name and Area -->
-              <text
-                :x="(room.x + room.width / 2) * scale"
-                :y="(room.y + room.height / 2) * scale"
-                text-anchor="middle"
-                fill="#000"
-                font-size="12"
-                font-weight="bold"
-                pointer-events="none"
-              >
-                {{ room.name }}
-              </text>
-              <text
-                :x="(room.x + room.width / 2) * scale"
-                :y="(room.y + room.height / 2) * scale + 15"
-                text-anchor="middle"
-                fill="#000"
-                font-size="10"
-                pointer-events="none"
-              >
-                {{ (room.width * room.height).toFixed(1) }} m²
-              </text>
-
-              <!-- Dimensions -->
-              <text
-                :x="(room.x + room.width / 2) * scale"
-                :y="(room.y + room.height) * scale -5"
-                text-anchor="middle"
-                fill="#666"
-                font-size="9"
-                pointer-events="none"
-              >
-                {{ room.width.toFixed(1) }} × {{ room.height.toFixed(1) }} m
-              </text>
             </g>
           </g>
 
@@ -281,8 +492,44 @@
             </g>
           </g>
 
+          <g v-if="showRoomNames || showRoomAreas || showRoomDimensions" class="room-labels" pointer-events="none">
+            <g v-for="room in plantStore.orderedObjects" :key="`labels-${room.id}`">
+              <text
+                v-if="showRoomNames"
+                :x="(room.x + room.width / 2) * scale"
+                :y="(room.y + room.height / 2) * scale"
+                text-anchor="middle"
+                fill="#000"
+                font-size="12"
+                font-weight="bold"
+              >
+                {{ room.name }}
+              </text>
+              <text
+                v-if="showRoomAreas && room.type === 'room'"
+                :x="(room.x + room.width / 2) * scale"
+                :y="(room.y + room.height / 2) * scale + 15"
+                text-anchor="middle"
+                fill="#000"
+                font-size="10"
+              >
+                {{ (room.width * room.height).toFixed(1) }} m²
+              </text>
+              <text
+                v-if="showRoomDimensions"
+                :x="(room.x + room.width / 2) * scale"
+                :y="(room.y + room.height - (room.type === 'room' && hasWall(room, 'bottom') ? room.wallThicknesses.bottom / 2 : 0)) * scale - 5"
+                text-anchor="middle"
+                fill="#666"
+                font-size="9"
+              >
+                {{ room.width.toFixed(1) }} × {{ room.height.toFixed(1) }} m
+              </text>
+            </g>
+          </g>
+
           <!-- Dimensions Labels -->
-          <g class="dimensions" pointer-events="none">
+          <g v-if="showRulers" class="dimensions" pointer-events="none">
             <text
               x="10"
               :y="plantStore.lot.height * scale + 20"
@@ -304,6 +551,17 @@
         </svg>
       </div>
 
+      <div class="canvas-toolbar">
+        <button type="button" class="toolbar-icon active" title="Selecionar">↖</button>
+        <span class="toolbar-divider"></span>
+        <button type="button" class="toolbar-button" @click="emit('add-room')">＋ Cômodo</button>
+        <button type="button" class="toolbar-button" @click="emit('add-furniture')">＋ Móvel</button>
+        <button type="button" class="toolbar-button" @click="emit('add-marking')">＋ Marcação</button>
+        <button type="button" class="toolbar-button" @click="showGuidePanel = !showGuidePanel">⌖ Guias</button>
+        <button type="button" class="toolbar-button" title="Exportar planta como SVG" @click="exportSvg">Exportar SVG</button>
+        <button type="button" class="toolbar-icon" title="Ajustar canvas à área visível" @click="fitCanvas">⛶</button>
+      </div>
+
       <div
         v-if="contextMenu.visible"
         class="room-context-menu"
@@ -318,6 +576,12 @@
         </button>
         <button type="button" class="context-menu-item" @click="handleContextSwapDimensions">
           Inverter altura x largura
+        </button>
+        <button type="button" class="context-menu-item" :disabled="!plantStore.canMoveObject(contextMenu.room?.id, 1)" @click="handleContextReorder(1)">
+          Enviar para frente
+        </button>
+        <button type="button" class="context-menu-item" :disabled="!plantStore.canMoveObject(contextMenu.room?.id, -1)" @click="handleContextReorder(-1)">
+          Enviar para trás
         </button>
         <button type="button" class="context-menu-item context-menu-item-danger" @click="handleContextDelete">
           Apagar
@@ -341,13 +605,47 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, nextTick, watch } from 'vue'
 import { usePlantStore } from '../stores/plantStore'
+import { buildWallRectangles, buildWallSnapTargets } from '../walls'
 
-const emit = defineEmits(['edit-room'])
+const props = defineProps({
+  selectedRoomId: {
+    type: [Number, String],
+    default: null
+  },
+  selectedElementType: {
+    type: String,
+    default: 'lot'
+  }
+})
+
+const emit = defineEmits(['edit-room', 'select-element', 'add-room', 'add-furniture', 'add-marking'])
 
 const plantStore = usePlantStore()
-const scale = ref(38) // pixels per meter
+const roomObjects = computed(() => plantStore.orderedObjects.filter(room => room.type === 'room'))
+const wallRectangles = computed(() => buildWallRectangles(roomObjects.value))
+const BASE_SCALE = 38
+const scale = ref(BASE_SCALE)
+const zoomMenuOpen = ref(false)
+const snapMenuOpen = ref(false)
+const disableAllSnaps = ref(false)
+const gridSpacing = ref(1)
+const showPixelGrid = ref(false)
+const snapOptions = ref({
+  grid: true,
+  rooms: true,
+  verticalGuides: true,
+  horizontalGuides: true
+})
+const showLayoutGrid = ref(true)
+const showRulers = ref(true)
+const showOutlines = ref(true)
+const showRoomNames = ref(true)
+const showRoomAreas = ref(true)
+const showRoomDimensions = ref(true)
+const showGuidePanel = ref(false)
+const canvasWrapper = ref(null)
 const draggingRoom = ref(null)
 const dragStartX = ref(0)
 const dragStartY = ref(0)
@@ -363,8 +661,8 @@ const contextMenu = ref({
 
 // after a drop, suppress immediate startDragImage for a short window to avoid accidental drag
 const dropSuppressUntil = ref(0)
-const SNAP_DISTANCE = 0.35
-const MIN_ROOM_SIZE = 0.5
+const SNAP_DISTANCE = 0.2
+const MIN_ROOM_SIZE = 0.1
 const ROOM_WALL_FALLBACK = Object.freeze({
   top: true,
   right: true,
@@ -380,6 +678,24 @@ const placedDragOffset = ref({ x: 0, y: 0 })
 
 const canvasWidth = computed(() => (plantStore.lot?.width || 10) * scale.value + 40)
 const canvasHeight = computed(() => (plantStore.lot?.height || 15) * scale.value + 60)
+const pixelView = computed(() => Math.round(scale.value / BASE_SCALE * 100))
+
+const updateGridSpacing = (event) => {
+  const value = Number(event.target.value)
+  if (!Number.isFinite(value) || value < 0.01 || Math.abs(value * 100 - Math.round(value * 100)) > 0.000001) {
+    alert('O espaçamento do grid deve ser de pelo menos 0,01 m, em incrementos de 0,01 m.')
+  } else {
+    gridSpacing.value = value
+  }
+  event.target.value = String(gridSpacing.value)
+}
+
+const snapToGrid = (value) =>
+  Number((Math.round(value / gridSpacing.value) * gridSpacing.value).toFixed(10))
+
+watch([canvasWidth, canvasHeight], () => {
+  viewportOffset.value = clampViewportOffset(viewportOffset.value.x, viewportOffset.value.y)
+})
 
 const hasWall = (room, side) => {
   const walls = room?.walls || ROOM_WALL_FALLBACK
@@ -387,28 +703,32 @@ const hasWall = (room, side) => {
 }
 
 const clampViewportOffset = (x, y) => {
-  const wrapper = document.querySelector('.canvas-wrapper')
+  const wrapper = canvasWrapper.value
   if (!wrapper) {
     return { x, y }
   }
 
   const minX = Math.min(0, wrapper.clientWidth - canvasWidth.value)
   const minY = Math.min(0, wrapper.clientHeight - canvasHeight.value)
+  const maxX = Math.max(0, (wrapper.clientWidth - canvasWidth.value) / 2)
+  const maxY = Math.max(0, (wrapper.clientHeight - canvasHeight.value) / 2)
 
   return {
-    x: Math.min(0, Math.max(x, minX)),
-    y: Math.min(0, Math.max(y, minY))
+    x: Math.min(maxX, Math.max(x, minX)),
+    y: Math.min(maxY, Math.max(y, minY))
   }
 }
 
 const startPan = (event) => {
-  if (event.button !== 0) return
+  if (event.button !== 1 && event.button !== 0) return
 
   const interactiveTarget = event.target && typeof event.target.closest === 'function'
     ? event.target.closest('.room, .room-rect, .resize-handle, .context-menu-item, .guide-row input, button')
     : false
 
-  if (interactiveTarget) return
+  if (event.button === 0 && interactiveTarget) return
+  if (event.button === 1 && event.target.closest?.('button, input, .zoom-menu, .guides-controls, .canvas-toolbar')) return
+  if (event.button === 1) event.preventDefault()
 
   workspacePan.value = {
     startX: event.clientX,
@@ -432,6 +752,26 @@ const stopWorkspacePan = () => {
   workspacePan.value = null
 }
 
+const handleCanvasClick = (event) => {
+  closeContextMenu()
+  closeImageContextMenu()
+  zoomMenuOpen.value = false
+  snapMenuOpen.value = false
+  if (!event.target.closest?.('.room, .placed-image-item')) {
+    selectLot()
+  }
+}
+
+const selectLot = () => {
+  zoomMenuOpen.value = false
+  emit('select-element', { type: 'lot' })
+}
+
+const selectRoom = (room) => {
+  zoomMenuOpen.value = false
+  emit('select-element', { type: 'room', id: room.id })
+}
+
 const getPointerInMeters = (event) => {
   let svg = null
   try {
@@ -452,178 +792,161 @@ const getPointerInMeters = (event) => {
   }
 }
 
+const getObjectSnapTargets = (room, bounds) => {
+  if (disableAllSnaps.value || !snapOptions.value.rooms) return { left: [], right: [], top: [], bottom: [] }
+  const otherObjects = plantStore.rooms.filter(other => other.id !== room.id)
+  const edgeObjects = room.type === 'furniture'
+    ? otherObjects.filter(other => other.type !== 'room')
+    : otherObjects
+  const x = edgeObjects.flatMap(other => [other.x, other.x + other.width])
+  const y = edgeObjects.flatMap(other => [other.y, other.y + other.height])
+  const targets = { left: [...x], right: [...x], top: [...y], bottom: [...y] }
+  if (room.type === 'furniture') {
+    const walls = buildWallSnapTargets(otherObjects, bounds)
+    for (const edge of Object.keys(targets)) targets[edge].push(...walls[edge])
+  }
+  return targets
+}
+
 const snapRoomToEdges = (candidateX, candidateY, room) => {
-  let snappedX = candidateX
-  let snappedY = candidateY
+  if (disableAllSnaps.value) return { x: candidateX, y: candidateY }
+  const targets = getObjectSnapTargets(room, { ...room, x: candidateX, y: candidateY })
+  const roomXTargets = [...targets.left, ...targets.right.map(target => target - room.width)]
+  const roomYTargets = [...targets.top, ...targets.bottom.map(target => target - room.height)]
+  const guideXTargets = snapOptions.value.verticalGuides
+    ? (plantStore.guides.vertical || []).flatMap(guide => [guide, guide - room.width])
+    : []
+  const guideYTargets = snapOptions.value.horizontalGuides
+    ? (plantStore.guides.horizontal || []).flatMap(guide => [guide, guide - room.height])
+    : []
 
-  const otherRooms = plantStore.rooms.filter(otherRoom => otherRoom.id !== room.id)
-
-  // consider other rooms
-  for (const otherRoom of otherRooms) {
-    const xCandidates = [
-      { value: otherRoom.x, distance: Math.abs(snappedX - otherRoom.x) },
-      { value: otherRoom.x + otherRoom.width, distance: Math.abs(snappedX - (otherRoom.x + otherRoom.width)) },
-      { value: otherRoom.x - room.width, distance: Math.abs((snappedX + room.width) - otherRoom.x) },
-      { value: otherRoom.x + otherRoom.width - room.width, distance: Math.abs((snappedX + room.width) - (otherRoom.x + otherRoom.width)) }
-    ]
-
-    const closestX = xCandidates.reduce((best, current) => current.distance < best.distance ? current : best)
-    if (closestX.distance <= SNAP_DISTANCE) {
-      snappedX = closestX.value
-    }
-
-    const yCandidates = [
-      { value: otherRoom.y, distance: Math.abs(snappedY - otherRoom.y) },
-      { value: otherRoom.y + otherRoom.height, distance: Math.abs(snappedY - (otherRoom.y + otherRoom.height)) },
-      { value: otherRoom.y - room.height, distance: Math.abs((snappedY + room.height) - otherRoom.y) },
-      { value: otherRoom.y + otherRoom.height - room.height, distance: Math.abs((snappedY + room.height) - (otherRoom.y + otherRoom.height)) }
-    ]
-
-    const closestY = yCandidates.reduce((best, current) => current.distance < best.distance ? current : best)
-    if (closestY.distance <= SNAP_DISTANCE) {
-      snappedY = closestY.value
-    }
+  return {
+    x: resolveSnapPosition(candidateX, [...roomXTargets, ...guideXTargets]),
+    y: resolveSnapPosition(candidateY, [...roomYTargets, ...guideYTargets])
   }
+}
 
-  // consider guides
-  if (plantStore.guides) {
-    const vGuides = plantStore.guides.vertical || []
-    for (const g of vGuides) {
-      const leftDist = Math.abs(snappedX - g)
-      const rightDist = Math.abs((snappedX + room.width) - g)
-      if (leftDist <= SNAP_DISTANCE && leftDist <= rightDist) {
-        snappedX = g
-      }
-      if (rightDist <= SNAP_DISTANCE && rightDist < leftDist) {
-        snappedX = g - room.width
-      }
-    }
+const snapToNearestTarget = (value, targets) => {
+  const closest = targets.reduce((best, target) => {
+    const distance = Math.abs(value - target)
+    return distance < best.distance ? { value: target, distance } : best
+  }, { value, distance: SNAP_DISTANCE + Number.EPSILON })
 
-    const hGuides = plantStore.guides.horizontal || []
-    for (const g of hGuides) {
-      const topDist = Math.abs(snappedY - g)
-      const bottomDist = Math.abs((snappedY + room.height) - g)
-      if (topDist <= SNAP_DISTANCE && topDist <= bottomDist) {
-        snappedY = g
-      }
-      if (bottomDist <= SNAP_DISTANCE && bottomDist < topDist) {
-        snappedY = g - room.height
-      }
-    }
-  }
+  return closest.distance <= SNAP_DISTANCE ? closest.value : null
+}
 
-  return { x: snappedX, y: snappedY }
+const resolveSnapPosition = (value, targets) => {
+  if (disableAllSnaps.value) return value
+  const snapped = snapToNearestTarget(value, targets)
+  if (snapped !== null) return snapped
+  return snapOptions.value.grid ? snapToGrid(value) : value
 }
 
 const snapRoomResize = (room, edge, candidateX, candidateY, candidateWidth, candidateHeight) => {
+  if (disableAllSnaps.value) {
+    return { x: candidateX, y: candidateY, width: candidateWidth, height: candidateHeight }
+  }
   let snappedX = candidateX
   let snappedY = candidateY
   let snappedWidth = candidateWidth
   let snappedHeight = candidateHeight
 
-  const otherRooms = plantStore.rooms.filter(otherRoom => otherRoom.id !== room.id)
+  const targets = getObjectSnapTargets(room, {
+    x: candidateX, y: candidateY, width: candidateWidth, height: candidateHeight
+  })
+  const fixedRight = room.x + room.width
+  const fixedBottom = room.y + room.height
+  let didSnap = false
 
-  for (const otherRoom of otherRooms) {
-    const otherLeft = otherRoom.x
-    const otherRight = otherRoom.x + otherRoom.width
-    const otherTop = otherRoom.y
-    const otherBottom = otherRoom.y + otherRoom.height
-
-    if (edge === 'right') {
-      const rightEdge = snappedX + snappedWidth
-      const candidates = [
-        { value: otherLeft, distance: Math.abs(rightEdge - otherLeft) },
-        { value: otherRight, distance: Math.abs(rightEdge - otherRight) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedWidth = closest.value - snappedX
-      }
+  if (edge === 'right' && targets.right.length) {
+    const target = snapToNearestTarget(
+      snappedX + snappedWidth,
+      targets.right
+    )
+    if (target !== null && target - snappedX >= MIN_ROOM_SIZE) {
+      snappedWidth = target - snappedX
+      didSnap = true
     }
-
-    if (edge === 'left') {
-      const candidates = [
-        { value: otherLeft, distance: Math.abs(snappedX - otherLeft) },
-        { value: otherRight, distance: Math.abs(snappedX - otherRight) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedX = closest.value
-        snappedWidth = (room.x + room.width) - snappedX
-      }
+  } else if (edge === 'left' && targets.left.length) {
+    const target = snapToNearestTarget(
+      snappedX,
+      targets.left
+    )
+    if (target !== null && fixedRight - target >= MIN_ROOM_SIZE) {
+      snappedX = target
+      snappedWidth = fixedRight - target
+      didSnap = true
     }
-
-    if (edge === 'bottom') {
-      const bottomEdge = snappedY + snappedHeight
-      const candidates = [
-        { value: otherTop, distance: Math.abs(bottomEdge - otherTop) },
-        { value: otherBottom, distance: Math.abs(bottomEdge - otherBottom) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedHeight = closest.value - snappedY
-      }
+  } else if (edge === 'bottom' && targets.bottom.length) {
+    const target = snapToNearestTarget(
+      snappedY + snappedHeight,
+      targets.bottom
+    )
+    if (target !== null && target - snappedY >= MIN_ROOM_SIZE) {
+      snappedHeight = target - snappedY
+      didSnap = true
     }
-
-    if (edge === 'top') {
-      const candidates = [
-        { value: otherTop, distance: Math.abs(snappedY - otherTop) },
-        { value: otherBottom, distance: Math.abs(snappedY - otherBottom) }
-      ]
-      const closest = candidates.reduce((best, current) => current.distance < best.distance ? current : best)
-      if (closest.distance <= SNAP_DISTANCE) {
-        snappedY = closest.value
-        snappedHeight = (room.y + room.height) - snappedY
-      }
+  } else if (edge === 'top' && targets.top.length) {
+    const target = snapToNearestTarget(
+      snappedY,
+      targets.top
+    )
+    if (target !== null && fixedBottom - target >= MIN_ROOM_SIZE) {
+      snappedY = target
+      snappedHeight = fixedBottom - target
+      didSnap = true
     }
   }
 
-  // consider guides for resize edges
   if (plantStore.guides) {
     const vGuides = plantStore.guides.vertical || []
-    if (edge === 'right') {
-      const rightEdge = snappedX + snappedWidth
-      for (const g of vGuides) {
-        const d = Math.abs(rightEdge - g)
-        if (d <= SNAP_DISTANCE) {
-          snappedWidth = g - snappedX
-          break
-        }
+    if (snapOptions.value.verticalGuides && edge === 'right') {
+      const target = snapToNearestTarget(snappedX + snappedWidth, vGuides)
+      if (target !== null && target - snappedX >= MIN_ROOM_SIZE) {
+        snappedWidth = target - snappedX
+        didSnap = true
       }
     }
 
-    if (edge === 'left') {
-      for (const g of vGuides) {
-        const d = Math.abs(snappedX - g)
-        if (d <= SNAP_DISTANCE) {
-          snappedX = g
-          snappedWidth = (room.x + room.width) - snappedX
-          break
-        }
+    if (snapOptions.value.verticalGuides && edge === 'left') {
+      const target = snapToNearestTarget(snappedX, vGuides)
+      if (target !== null && fixedRight - target >= MIN_ROOM_SIZE) {
+        snappedX = target
+        snappedWidth = fixedRight - target
+        didSnap = true
       }
     }
 
     const hGuides = plantStore.guides.horizontal || []
-    if (edge === 'bottom') {
-      const bottomEdge = snappedY + snappedHeight
-      for (const g of hGuides) {
-        const d = Math.abs(bottomEdge - g)
-        if (d <= SNAP_DISTANCE) {
-          snappedHeight = g - snappedY
-          break
-        }
+    if (snapOptions.value.horizontalGuides && edge === 'bottom') {
+      const target = snapToNearestTarget(snappedY + snappedHeight, hGuides)
+      if (target !== null && target - snappedY >= MIN_ROOM_SIZE) {
+        snappedHeight = target - snappedY
+        didSnap = true
       }
     }
 
-    if (edge === 'top') {
-      for (const g of hGuides) {
-        const d = Math.abs(snappedY - g)
-        if (d <= SNAP_DISTANCE) {
-          snappedY = g
-          snappedHeight = (room.y + room.height) - snappedY
-          break
-        }
+    if (snapOptions.value.horizontalGuides && edge === 'top') {
+      const target = snapToNearestTarget(snappedY, hGuides)
+      if (target !== null && fixedBottom - target >= MIN_ROOM_SIZE) {
+        snappedY = target
+        snappedHeight = fixedBottom - target
+        didSnap = true
       }
+    }
+  }
+
+  if (snapOptions.value.grid && !didSnap) {
+    if (edge === 'right') {
+      snappedWidth = Math.max(MIN_ROOM_SIZE, snapToGrid(snappedX + snappedWidth) - snappedX)
+    } else if (edge === 'left') {
+      snappedX = Math.min(snapToGrid(snappedX), fixedRight - MIN_ROOM_SIZE)
+      snappedWidth = fixedRight - snappedX
+    } else if (edge === 'bottom') {
+      snappedHeight = Math.max(MIN_ROOM_SIZE, snapToGrid(snappedY + snappedHeight) - snappedY)
+    } else {
+      snappedY = Math.min(snapToGrid(snappedY), fixedBottom - MIN_ROOM_SIZE)
+      snappedHeight = fixedBottom - snappedY
     }
   }
 
@@ -659,6 +982,11 @@ const startDrag = (event, room) => {
 }
 
 const startDragImage = (event, img) => {
+  if (event.button === 1) {
+    startPan(event)
+    return
+  }
+
   // suppress accidental start immediately after a drop
   if (Date.now() < (dropSuppressUntil?.value || 0)) {
     console.debug('[startDragImage] suppressed by recent drop', img?.id)
@@ -699,6 +1027,10 @@ const startDragImage = (event, img) => {
 }
 
 const startResize = (event, room, edge) => {
+  if (event.button === 1) {
+    startPan(event)
+    return
+  }
   if (event.button !== 0) return
 
   event.stopPropagation()
@@ -764,9 +1096,11 @@ const handleMouseMove = (event) => {
       newY = plantStore.lot.height - draggingRoom.value.height
     }
 
-    const snappedPosition = snapRoomToEdges(newX, newY, draggingRoom.value)
-    newX = snappedPosition.x
-    newY = snappedPosition.y
+    if (!disableAllSnaps.value && Object.values(snapOptions.value).some(Boolean)) {
+      const snappedPosition = snapRoomToEdges(newX, newY, draggingRoom.value)
+      newX = snappedPosition.x
+      newY = snappedPosition.y
+    }
 
     if (newX < 0) newX = 0
     if (newY < 0) newY = 0
@@ -777,8 +1111,9 @@ const handleMouseMove = (event) => {
       newY = plantStore.lot.height - draggingRoom.value.height
     }
 
-    draggingRoom.value.x = parseFloat(newX.toFixed(2))
-    draggingRoom.value.y = parseFloat(newY.toFixed(2))
+    const precision = draggingRoom.value.type === 'furniture' ? 9 : 2
+    draggingRoom.value.x = parseFloat(newX.toFixed(precision))
+    draggingRoom.value.y = parseFloat(newY.toFixed(precision))
     return
   }
 
@@ -816,12 +1151,15 @@ const handleMouseMove = (event) => {
     nextHeight = initialY + initialHeight - nextY
   }
 
-  const snappedResize = snapRoomResize(room, edge, nextX, nextY, nextWidth, nextHeight)
+  const snappedResize = !disableAllSnaps.value && Object.values(snapOptions.value).some(Boolean)
+    ? snapRoomResize(room, edge, nextX, nextY, nextWidth, nextHeight)
+    : { x: nextX, y: nextY, width: nextWidth, height: nextHeight }
 
-  room.x = parseFloat(Math.min(Math.max(snappedResize.x, 0), plantStore.lot.width - snappedResize.width).toFixed(2))
-  room.y = parseFloat(Math.min(Math.max(snappedResize.y, 0), plantStore.lot.height - snappedResize.height).toFixed(2))
-  room.width = parseFloat(Math.min(Math.max(snappedResize.width, MIN_ROOM_SIZE), plantStore.lot.width - room.x).toFixed(2))
-  room.height = parseFloat(Math.min(Math.max(snappedResize.height, MIN_ROOM_SIZE), plantStore.lot.height - room.y).toFixed(2))
+  const precision = room.type === 'furniture' ? 9 : 2
+  room.x = parseFloat(Math.min(Math.max(snappedResize.x, 0), plantStore.lot.width - snappedResize.width).toFixed(precision))
+  room.y = parseFloat(Math.min(Math.max(snappedResize.y, 0), plantStore.lot.height - snappedResize.height).toFixed(precision))
+  room.width = parseFloat(Math.min(Math.max(snappedResize.width, MIN_ROOM_SIZE), plantStore.lot.width - room.x).toFixed(precision))
+  room.height = parseFloat(Math.min(Math.max(snappedResize.height, MIN_ROOM_SIZE), plantStore.lot.height - room.y).toFixed(precision))
 }
 
 const handleMouseUp = () => {
@@ -863,7 +1201,7 @@ const openContextMenu = (event, room) => {
 
   const wrapperRect = wrapper.getBoundingClientRect()
   const menuWidth = 230
-  const menuHeight = 176
+  const menuHeight = 264
   const padding = 8
 
   const maxX = wrapperRect.width - menuWidth - padding
@@ -889,6 +1227,12 @@ const handleContextEdit = () => {
   if (!contextMenu.value.room) return
 
   emit('edit-room', contextMenu.value.room)
+  closeContextMenu()
+}
+
+const handleContextReorder = (direction) => {
+  if (!contextMenu.value.room) return
+  plantStore.moveObject(contextMenu.value.room.id, direction)
   closeContextMenu()
 }
 
@@ -941,8 +1285,11 @@ const handleContextDelete = () => {
   const targetRoom = contextMenu.value.room
   if (!targetRoom) return
 
-  if (confirm('Tem certeza que deseja apagar este cômodo?')) {
+  if (confirm('Tem certeza que deseja apagar este objeto?')) {
     plantStore.deleteRoom(targetRoom.id)
+    if (props.selectedRoomId === targetRoom.id) {
+      emit('select-element', { type: 'lot' })
+    }
   }
 
   closeContextMenu()
@@ -956,7 +1303,7 @@ const handleContextSwapDimensions = () => {
   const swappedHeight = targetRoom.width
 
   if (swappedWidth > plantStore.lot.width || swappedHeight > plantStore.lot.height) {
-    alert('Não é possível inverter as dimensões deste cômodo dentro do lote.')
+    alert('Não é possível inverter as dimensões deste objeto dentro do lote.')
     closeContextMenu()
     return
   }
@@ -1063,6 +1410,63 @@ const fetchSvgViewBox = async (path) => {
 
 const canvas = ref(null)
 
+const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(reader.result)
+  reader.onerror = () => reject(reader.error || new Error('Não foi possível ler uma imagem SVG.'))
+  reader.readAsDataURL(blob)
+})
+
+const exportSvg = async () => {
+  if (!canvas.value) {
+    alert('Não foi possível encontrar a planta para exportar.')
+    return
+  }
+
+  try {
+    const svg = canvas.value.cloneNode(true)
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    svg.setAttribute('viewBox', `0 0 ${canvasWidth.value} ${canvasHeight.value}`)
+    svg.querySelectorAll('.lot-selection-outline, .room-selection-outline, .resize-handle').forEach((element) => element.remove())
+    svg.querySelectorAll('.room-selected').forEach((element) => element.classList.remove('room-selected'))
+
+    const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    background.setAttribute('width', String(canvasWidth.value))
+    background.setAttribute('height', String(canvasHeight.value))
+    background.setAttribute('fill', '#fff')
+    svg.insertBefore(background, svg.firstChild)
+
+    const images = Array.from(svg.querySelectorAll('image'))
+    await Promise.all(images.map(async (image) => {
+      const href = image.getAttribute('href')
+        || image.getAttributeNS('http://www.w3.org/1999/xlink', 'href')
+      if (!href || href.startsWith('data:')) return
+
+      const response = await fetch(href)
+      if (!response.ok) {
+        throw new Error(`Não foi possível carregar a imagem "${href}".`)
+      }
+      image.setAttribute('href', await blobToDataUrl(await response.blob()))
+      image.removeAttributeNS('http://www.w3.org/1999/xlink', 'href')
+    }))
+
+    const file = new Blob([new XMLSerializer().serializeToString(svg)], {
+      type: 'image/svg+xml;charset=utf-8'
+    })
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `planta-baixa-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.svg`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  } catch (error) {
+    console.error('Falha ao exportar a planta como SVG:', error)
+    alert(`Não foi possível exportar a planta como SVG: ${error.message}`)
+  }
+}
+
 const handleDrop = async (event) => {
   // try custom type then fallback to text/plain
   let data = event.dataTransfer.getData('application/x-svg')
@@ -1120,6 +1524,8 @@ const handleGlobalContextMenuClose = (event) => {
   const clickedImageMenu = path.some((node) => node?.classList?.contains?.('image-context-menu'))
   const clickedRoom = path.some((node) => node?.classList?.contains?.('room'))
   const clickedImage = path.some((node) => node?.classList?.contains?.('placed-image-item'))
+  const clickedControls = path.some((node) => node?.classList?.contains?.('canvas-controls'))
+  if (!clickedControls) snapMenuOpen.value = false
 
   if (contextMenu.value.visible && !clickedRoomMenu && !clickedRoom) {
     closeContextMenu()
@@ -1134,12 +1540,14 @@ window.addEventListener('mousedown', handleGlobalContextMenuClose)
 window.addEventListener('mousemove', handleWorkspacePan)
 window.addEventListener('mouseup', stopWorkspacePan)
 window.addEventListener('resize', closeContextMenu)
+window.addEventListener('keydown', handleZoomShortcut)
 
 onBeforeUnmount(() => {
   window.removeEventListener('mousedown', handleGlobalContextMenuClose)
   window.removeEventListener('mousemove', handleWorkspacePan)
   window.removeEventListener('mouseup', stopWorkspacePan)
   window.removeEventListener('resize', closeContextMenu)
+  window.removeEventListener('keydown', handleZoomShortcut)
 
   // cleanup any drag listeners if left behind
   try {
@@ -1150,16 +1558,132 @@ onBeforeUnmount(() => {
   }
 })
 
-const zoomIn = () => {
-  scale.value = Math.min(scale.value + 10, 100)
+const zoomAround = (nextScale, anchorX, anchorY) => {
+  const wrapper = canvasWrapper.value
+  if (!wrapper) return
+
+  const ratio = nextScale / scale.value
+  scale.value = nextScale
+  viewportOffset.value = clampViewportOffset(
+    anchorX - (anchorX - viewportOffset.value.x) * ratio,
+    anchorY - (anchorY - viewportOffset.value.y) * ratio
+  )
 }
 
-const zoomOut = () => {
-  scale.value = Math.max(scale.value - 10, 20)
+const setZoom = (percent) => {
+  const nextScale = Math.min(190, Math.max(5, BASE_SCALE * percent / 100))
+  const wrapper = canvasWrapper.value
+  if (wrapper) {
+    zoomAround(
+      nextScale,
+      wrapper.clientWidth / 2,
+      wrapper.clientHeight / 2
+    )
+  } else {
+    scale.value = nextScale
+  }
+  zoomMenuOpen.value = false
 }
 
-const resetZoom = () => {
-  scale.value = 40
+const changeZoom = (change) => {
+  setZoom(Math.round(scale.value / BASE_SCALE * 100) + change)
+}
+
+const fitCanvas = () => {
+  const wrapper = canvasWrapper.value
+  if (!wrapper || !plantStore.lot) return
+
+  const horizontalFit = (wrapper.clientWidth - 80) / plantStore.lot.width
+  const verticalFit = (wrapper.clientHeight - 100) / plantStore.lot.height
+  scale.value = Math.min(190, Math.max(5, Math.min(horizontalFit, verticalFit)))
+  viewportOffset.value = clampViewportOffset(
+    (wrapper.clientWidth - canvasWidth.value) / 2,
+    (wrapper.clientHeight - canvasHeight.value) / 2
+  )
+  zoomMenuOpen.value = false
+}
+
+onMounted(async () => {
+  await nextTick()
+  const wrapper = canvasWrapper.value
+  if (wrapper) {
+    viewportOffset.value = clampViewportOffset(
+      (wrapper.clientWidth - canvasWidth.value) / 2,
+      (wrapper.clientHeight - canvasHeight.value) / 2
+    )
+  }
+})
+
+const fitSelection = () => {
+  const room = props.selectedRoomId == null
+    ? null
+    : plantStore.getRoomById(props.selectedRoomId)
+  if (!room) {
+    fitCanvas()
+    return
+  }
+
+  const wrapper = canvasWrapper.value
+  if (!wrapper) return
+
+  const nextScale = Math.min(
+    190,
+    Math.max(5, Math.min(
+      (wrapper.clientWidth * 0.7) / room.width,
+      (wrapper.clientHeight * 0.7) / room.height
+    ))
+  )
+  scale.value = nextScale
+  viewportOffset.value = clampViewportOffset(
+    wrapper.clientWidth / 2 - (room.x + room.width / 2) * nextScale,
+    wrapper.clientHeight / 2 - (room.y + room.height / 2) * nextScale
+  )
+  zoomMenuOpen.value = false
+}
+
+const setPixelView = (multiplier) => {
+  setZoom(multiplier * 100)
+}
+
+const handleWheel = (event) => {
+  if (event.target.closest?.('.zoom-menu, .guides-controls, .canvas-toolbar')) return
+  const wrapper = canvasWrapper.value
+  if (!wrapper) return
+  event.preventDefault()
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1
+  const nextScale = Math.min(190, Math.max(5, scale.value * factor))
+  zoomAround(nextScale, event.clientX - wrapper.getBoundingClientRect().left, event.clientY - wrapper.getBoundingClientRect().top)
+}
+
+function handleZoomShortcut(event) {
+  const target = event.target
+  if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return
+
+  const hasModifier = event.ctrlKey || event.metaKey
+  if (hasModifier && (event.key === '+' || event.key === '=')) {
+    event.preventDefault()
+    changeZoom(10)
+  } else if (hasModifier && event.key === '-') {
+    event.preventDefault()
+    changeZoom(-10)
+  } else if (event.shiftKey && event.key === '1') {
+    event.preventDefault()
+    fitCanvas()
+  } else if (event.shiftKey && event.key === '0') {
+    event.preventDefault()
+    setZoom(100)
+  } else if (event.shiftKey && event.key === '2') {
+    event.preventDefault()
+    fitSelection()
+  } else if (event.shiftKey && event.key.toLowerCase() === 'g') {
+    showLayoutGrid.value = !showLayoutGrid.value
+  } else if (event.shiftKey && event.key.toLowerCase() === 'r') {
+    showRulers.value = !showRulers.value
+  } else if (event.ctrlKey && event.shiftKey && (event.key === "'" || event.key === '"')) {
+    snapOptions.value.grid = !snapOptions.value.grid
+  } else if (event.shiftKey && (event.key === "'" || event.key === '"')) {
+    showPixelGrid.value = !showPixelGrid.value
+  }
 }
 
 // Guide controls
@@ -1258,6 +1782,7 @@ const removeGuide = (type, value) => {
 
 .plant-canvas {
   display: block;
+  overflow: visible;
   cursor: grab;
   background: white;
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
@@ -1278,8 +1803,6 @@ const removeGuide = (type, value) => {
 }
 
 .room-wall {
-  stroke: #333;
-  stroke-width: 5;
   pointer-events: none;
 }
 
@@ -1469,6 +1992,235 @@ const removeGuide = (type, value) => {
 
   .muted {
     color: #777;
+  }
+}
+
+.plant-canvas-container {
+  gap: 0;
+  border-radius: 0;
+}
+
+.canvas-wrapper {
+  border-radius: 0;
+  background: #f4f5f7;
+  cursor: grab;
+}
+
+.canvas-wrapper:active {
+  cursor: grabbing;
+}
+
+.canvas-surface {
+  transition: none;
+}
+
+.plant-canvas {
+  background: transparent;
+  box-shadow: none;
+  cursor: crosshair;
+}
+
+.room-wall {
+  pointer-events: none;
+}
+
+.room-selected .resize-handle {
+  opacity: 1;
+}
+
+.canvas-controls {
+  top: 14px;
+  right: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.zoom-menu-trigger {
+  min-width: 82px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 11px;
+  border: 1px solid #d7dbe0;
+  border-radius: 6px;
+  background: #fff;
+  color: #333840;
+  font-size: 12px;
+}
+
+.zoom-menu-trigger:hover,
+.canvas-toolbar button:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.zoom-menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 35;
+  width: 270px;
+  max-height: min(72vh, 600px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #e1e4e8;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(20, 27, 38, 0.16);
+}
+
+.grid-spacing-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px;
+  color: #30343a;
+  font-size: 12px;
+
+  input {
+    width: 78px;
+    padding: 6px;
+    border: 1px solid #d7dbe0;
+    border-radius: 4px;
+  }
+}
+
+.zoom-menu-item,
+.zoom-menu-toggle {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: #fff;
+  color: #30343a;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.zoom-menu-item:hover,
+.zoom-menu-toggle:hover {
+  background: #f1f5f9;
+  transform: none;
+  box-shadow: none;
+}
+
+.zoom-menu-toggle {
+  cursor: pointer;
+}
+
+.zoom-menu-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0 7px 0 0;
+  accent-color: #1687f8;
+}
+
+.zoom-menu-toggle kbd {
+  margin-left: auto;
+}
+
+.zoom-menu-item kbd,
+.zoom-menu-toggle kbd {
+  color: #858b94;
+  font-family: inherit;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.zoom-menu-divider {
+  height: 1px;
+  margin: 5px 3px;
+  background: #e8eaed;
+}
+
+.canvas-toolbar {
+  position: absolute;
+  z-index: 15;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 32px);
+  overflow-x: auto;
+  padding: 7px;
+  border: 1px solid #e0e3e7;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 16px rgba(25, 32, 43, 0.12);
+  transform: translateX(-50%);
+}
+
+.canvas-toolbar button {
+  min-width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #454b54;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.canvas-toolbar .toolbar-icon {
+  font-size: 18px;
+}
+
+.canvas-toolbar .active {
+  background: #1687f8;
+  color: #fff;
+}
+
+.canvas-toolbar .toolbar-button:hover,
+.canvas-toolbar .toolbar-icon:hover {
+  background: #eef4fb;
+}
+
+.canvas-toolbar .active:hover {
+  background: #0877e7;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 3px;
+  background: #e1e4e8;
+}
+
+.guides-controls {
+  top: 58px;
+  right: 18px;
+  width: 275px;
+  max-height: calc(100% - 125px);
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.97);
+}
+
+@media (max-width: 768px) {
+  .canvas-toolbar {
+    bottom: 9px;
+  }
+
+  .zoom-menu {
+    width: min(270px, calc(100vw - 24px));
   }
 }
 </style>

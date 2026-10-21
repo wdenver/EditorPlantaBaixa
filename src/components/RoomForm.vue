@@ -1,16 +1,22 @@
 <template>
   <div class="room-form-container">
-    <h2>{{ isEditing ? '✏️ Editar Cômodo' : '➕ Adicionar Novo Cômodo' }}</h2>
+    <h2>{{ isEditing ? 'Editar objeto' : 'Adicionar objeto' }}</h2>
     
     <form @submit.prevent="handleSubmit" class="room-form">
       <div class="form-group">
-        <label for="room-name">Nome do Cômodo:</label>
+        <label for="object-type">Tipo:</label>
+        <select id="object-type" v-model="form.type" @change="applyTypeDefaults">
+          <option v-for="option in OBJECT_TYPES" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="room-name">Nome{{ form.type === 'marking' ? ' (opcional)' : '' }}:</label>
         <input
           id="room-name"
           v-model="form.name"
           type="text"
           placeholder="Ex: Sala de Estar"
-          required
+          :required="form.type !== 'marking'"
         />
       </div>
 
@@ -22,8 +28,8 @@
             v-model="form.width"
             type="number"
             placeholder="Ex: 5"
-            min="0.5"
-            step="0.1"
+            min="0.1"
+            step="0.01"
             required
           />
         </div>
@@ -34,13 +40,13 @@
             v-model="form.height"
             type="number"
             placeholder="Ex: 4"
-            min="0.5"
-            step="0.1"
+            min="0.1"
+            step="0.01"
             required
           />
         </div>
       </div>
-      <div class="form-row">
+      <div v-if="form.type === 'room'" class="form-row">
         <div class="form-group">
           <label for="room-include-in-built-area">Incluir na Área Construída:</label>
           <input
@@ -91,8 +97,8 @@
       </div>
 
       <div class="form-group">
-        <label>Paredes a desenhar:</label>
-        <div class="wall-selector" role="group" aria-label="Selecionar paredes do cômodo">
+        <label>Bordas a desenhar:</label>
+        <div class="wall-selector" role="group" aria-label="Selecionar bordas do objeto">
           <button
             type="button"
             class="wall-toggle wall-toggle-top"
@@ -134,12 +140,12 @@
             Esquerda
           </button>
           <div class="wall-selector-center">
-            Clique nas paredes
+            Clique nas bordas
           </div>
         </div>
       </div>
 
-      <div class="area-info">
+      <div v-if="form.type === 'room'" class="area-info">
         <strong>Área: {{ (parseFloat(form.width) * parseFloat(form.height)).toFixed(2) }} m²</strong>
       </div>
 
@@ -149,7 +155,7 @@
 
       <div class="form-actions">
         <button type="submit" :class="isEditing ? 'btn-warning' : 'btn-primary'">
-          {{ isEditing ? '💾 Atualizar Cômodo' : '✅ Adicionar Cômodo' }}
+          {{ isEditing ? '💾 Atualizar objeto' : '✅ Adicionar objeto' }}
         </button>
         <button
           v-if="isEditing"
@@ -166,7 +172,7 @@
       <h4>💡 Dicas:</h4>
       <ul>
         <li>As caixas não podem sair dos limites do lote</li>
-        <li>Cada cômodo é representado por uma cor única</li>
+        <li>A aparência pode ser editada no painel de propriedades</li>
         <li>Você pode arrastar as caixas no canvas para reposicioná-las</li>
       </ul>
     </div>
@@ -176,6 +182,7 @@
 <script setup>
 import { ref, watch, computed, defineProps, defineEmits } from 'vue'
 import { usePlantStore } from '../stores/plantStore'
+import { OBJECT_TYPES, getObjectDefaults } from '../objectTypes'
 
 const createDefaultWalls = () => ({
   top: true,
@@ -190,6 +197,10 @@ const normalizeWalls = (walls) => ({
 })
 
 const props = defineProps({
+  initialType: {
+    type: String,
+    default: 'room'
+  },
   selectedRoom: {
     type: Object,
     default: null
@@ -200,13 +211,13 @@ const emit = defineEmits(['add-room', 'update-room', 'cancel'])
 
 const plantStore = usePlantStore()
 const form = ref({
+  ...getObjectDefaults(props.initialType),
   name: '',
   width: '',
   height: '',
   x: '',
   y: '',
   includeInBuiltArea: true,
-  color: '#FFFFFF',
   walls: createDefaultWalls()
 })
 
@@ -230,17 +241,22 @@ const handleSubmit = () => {
 
   const width = parseFloat(form.value.width)
   const height = parseFloat(form.value.height)
-  const x = parseFloat(form.value.x)
-  const y = parseFloat(form.value.y)
+  const x = Number(form.value.x)
+  const y = Number(form.value.y)
+
+  if (![width, height, x, y].every(Number.isFinite) || width < 0.1 || height < 0.1 || x < 0 || y < 0) {
+    error.value = 'Informe dimensões de pelo menos 0,1 m e posições válidas dentro do lote.'
+    return
+  }
 
   // Validação de limites
   if (x + width > plantStore.lot.width) {
-    error.value = `A largura do cômodo excede o limite do lote (máximo: ${plantStore.lot.width - x}m)`
+    error.value = `A largura do objeto excede o limite do lote (máximo: ${plantStore.lot.width - x}m)`
     return
   }
 
   if (y + height > plantStore.lot.height) {
-    error.value = `A altura do cômodo excede o limite do lote (máximo: ${plantStore.lot.height - y}m)`
+    error.value = `A altura do objeto excede o limite do lote (máximo: ${plantStore.lot.height - y}m)`
     return
   }
 
@@ -267,15 +283,19 @@ const toggleWall = (side) => {
   form.value.walls[side] = !form.value.walls[side]
 }
 
+const applyTypeDefaults = () => {
+  if (!isEditing.value) Object.assign(form.value, getObjectDefaults(form.value.type))
+}
+
 function resetForm() {
   form.value = {
+    ...getObjectDefaults(props.initialType),
     name: '',
     width: '',
     height: '',
     includeInBuiltArea: true,
     x: 0,
     y: 0,
-    color: '#ffffff',
     walls: createDefaultWalls()
   }
   error.value = ''
@@ -313,7 +333,8 @@ h2 {
   font-size: 0.95em;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
   padding: 10px;
   border: 2px solid #ddd;
   border-radius: 6px;

@@ -40,109 +40,89 @@
       <header class="top-bar">
         <div class="brand-area">
           <div class="brand-mark">PB</div>
-          <span>Planta Baixa</span>
+          <div>
+            <strong>Planta Baixa</strong>
+            <span class="project-name">Projeto sem título</span>
+          </div>
         </div>
 
-        <nav class="main-menu" aria-label="Menu principal">
-          <button type="button" class="menu-button active">Arquivo</button>
-          <button type="button" class="menu-button">Editar</button>
-          <button type="button" class="menu-button">Visualizar</button>
-          <button type="button" class="menu-button">Ajuda</button>
-        </nav>
-
         <div class="top-actions">
-          <button type="button" class="btn-secondary" @click="saveProjectFile">Salvar</button>
-          <button type="button" class="btn-secondary" @click="triggerFileImport">Carregar</button>
+          <button type="button" class="action-button" @click="triggerFileImport">Abrir projeto</button>
+          <button type="button" class="action-button" @click="resetProject">Novo projeto</button>
+          <button type="button" class="action-button action-primary" @click="saveProjectFile">Salvar</button>
         </div>
       </header>
 
       <div class="editor-body">
-        <aside class="toolbox">
-          <div class="tool-section">
-            <span class="tool-label">Ferramentas</span>
-            <button type="button" class="tool-button active">🧭 Planta</button>
-            <button type="button" class="tool-button" @click="openAddRoomModal">➕ Cômodo</button>
-            <button type="button" class="tool-button" @click="editLot">✏️ Lote</button>
+        <aside class="resources-panel">
+          <div class="resource-heading">
+            <h2>Recursos</h2>
           </div>
-
-          <div class="tool-section">
-            <span class="tool-label">Projeto</span>
-            <button type="button" class="tool-button danger" @click="resetProject">🗑️ Limpar</button>
+          <div class="resource-content">
+            <button type="button" class="new-room-button" @click="openAddRoomModal()">
+              <span aria-hidden="true">＋</span>
+              Novo cômodo
+            </button>
+            <button type="button" class="new-room-button" @click="openAddRoomModal('furniture')">＋ Adicionar móvel</button>
+            <button type="button" class="new-room-button" @click="openAddRoomModal('marking')">＋ Adicionar marcação</button>
+            <details class="wall-settings" open>
+              <summary>Paredes — configurações globais</summary>
+              <label>
+                Preenchimento
+                <input
+                  type="color"
+                  aria-label="Preenchimento global das paredes"
+                  :value="plantStore.wallSettings.fillColor"
+                  @input="plantStore.updateWallSettings({ fillColor: $event.target.value })"
+                />
+              </label>
+              <label>
+                Borda
+                <input
+                  type="color"
+                  aria-label="Cor global da borda das paredes"
+                  :value="plantStore.wallSettings.strokeColor"
+                  @input="plantStore.updateWallSettings({ strokeColor: $event.target.value })"
+                />
+              </label>
+            </details>
+            <SvgPalette />
+          </div>
+          <div class="project-summary">
+            <h3>Resumo do projeto</h3>
+            <div><span>Área do terreno</span><strong>{{ (plantStore.lot.width * plantStore.lot.height).toFixed(2) }} m²</strong></div>
+            <div><span>Cômodos</span><strong>{{ plantStore.rooms.filter(item => item.type === 'room').length }}</strong></div>
+            <div><span>Área construída</span><strong>{{ plantStore.getTotalArea.toFixed(2) }} m²</strong></div>
           </div>
         </aside>
 
         <main class="workspace-panel">
-          <PlantCanvas class="workspace-canvas" @edit-room="selectRoomToEdit" />
+          <PlantCanvas
+            class="workspace-canvas"
+            :selected-room-id="selectedElement.type === 'room' ? selectedElement.id : null"
+            :selected-element-type="selectedElement.type"
+            @edit-room="selectRoomToEdit"
+            @select-element="selectElement"
+            @add-room="openAddRoomModal"
+            @add-furniture="openAddRoomModal('furniture')"
+            @add-marking="openAddRoomModal('marking')"
+          />
         </main>
 
-        <aside class="details-panel">
-          <div class="panel-section">
-            <h3>Resumo do lote</h3>
-            <div class="info-item">
-              <span>Dimensões</span>
-              <strong>{{ plantStore.lot.width }}m × {{ plantStore.lot.height }}m</strong>
-            </div>
-            <div class="info-item">
-              <span>Área total</span>
-              <strong>{{ (plantStore.lot.width * plantStore.lot.height).toFixed(2) }} m²</strong>
-            </div>
-            <div class="info-item">
-              <span>Cômodos</span>
-              <strong>{{ plantStore.rooms.length }}</strong>
-            </div>
-            <div class="info-item">
-              <span>Área ocupada</span>
-              <strong>{{ plantStore.getTotalArea.toFixed(2) }} m²</strong>
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <h3>Imagens SVG</h3>
-            <SvgPalette />
-            <p class="muted" style="margin-top:8px">Clique para inserir no centro ou arraste para o canvas.</p>
-          </div>
-
-          <!-- <div class="panel-section">
-            <div class="panel-header">
-              <h3>Cômodos</h3>
-              <button type="button" class="mini-button" @click="openAddRoomModal">+ Novo</button>
-            </div>
-
-            <div v-if="plantStore.rooms.length === 0" class="empty-state">
-              <p>Nenhum cômodo adicionado ainda.</p>
-            </div>
-
-            <div v-else class="rooms-list">
-              <div
-                v-for="room in plantStore.rooms"
-                :key="room.id"
-                class="room-item"
-                :style="{ borderLeftColor: room.color }"
-              >
-                <div class="room-header">
-                  <h4>{{ room.name }}</h4>
-                  <span class="color-indicator" :style="{ backgroundColor: room.color }"></span>
-                </div>
-                <div class="room-details">
-                  <p>{{ room.width }}m × {{ room.height }}m</p>
-                  <p>Área: {{ (room.width * room.height).toFixed(2) }} m²</p>
-                </div>
-                <div class="room-actions">
-                  <button class="btn-sm btn-edit" @click="selectRoomToEdit(room)">✏️</button>
-                  <button class="btn-sm btn-delete" @click="deleteRoom(room.id)">🗑️</button>
-                </div>
-              </div>
-            </div>
-          </div> -->
-
-
-        </aside>
+        <PropertiesPanel
+          :item="selectedItem"
+          :is-object="selectedElement.type === 'room'"
+          :can-move-forward="plantStore.canMoveObject(selectedItem.id, 1)"
+          :can-move-backward="plantStore.canMoveObject(selectedItem.id, -1)"
+          @update="updateSelectedProperty"
+          @reorder="plantStore.moveObject(selectedItem.id, $event)"
+        />
       </div>
 
       <div v-if="isRoomModalOpen" class="modal-overlay">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>{{ selectedRoom ? 'Editar Cômodo' : 'Adicionar Cômodo' }}</h3>
+            <h3>{{ selectedRoom ? 'Editar objeto' : 'Adicionar objeto' }}</h3>
             <button type="button" class="modal-close" @click="closeRoomModal">✕</button>
           </div>
           <RoomForm
@@ -150,6 +130,7 @@
             @update-room="handleUpdateRoom"
             @cancel="closeRoomModal"
             :selectedRoom="selectedRoom"
+            :initial-type="newObjectType"
           />
         </div>
       </div>
@@ -166,20 +147,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { usePlantStore } from '../stores/plantStore'
 import PlantCanvas from './PlantCanvas.vue'
 import RoomForm from './RoomForm.vue'
 import SvgPalette from './SvgPalette.vue'
+import PropertiesPanel from './PropertiesPanel.vue'
 
 const plantStore = usePlantStore()
 const newLot = ref({ width: '', height: '' })
 const selectedRoom = ref(null)
+const newObjectType = ref('room')
+const selectedElement = ref({ type: 'lot' })
 const isRoomModalOpen = ref(false)
 const fileInput = ref(null)
 
-// listen to click-to-place events dispatched by SvgPalette
-window.addEventListener('place-image', (ev) => {
+const selectedItem = computed(() => selectedElement.value.type === 'room'
+  ? plantStore.getRoomById(selectedElement.value.id) || plantStore.lot
+  : plantStore.lot)
+
+const handlePlaceImage = (ev) => {
   const item = ev.detail
   if (!plantStore.lot) {
     alert('Crie um lote primeiro para inserir imagens.')
@@ -191,7 +178,10 @@ window.addEventListener('place-image', (ev) => {
   const heightMeters = item.scale * (vb.vbHeight / vb.vbWidth)
   const centerY = Math.max(0, (plantStore.lot.height / 2) - (heightMeters / 2))
   plantStore.addPlacedImage({ path: item.path, name: item.name, scaleMeters: item.scale, x: centerX, y: centerY, vbWidth: vb.vbWidth, vbHeight: vb.vbHeight })
-})
+}
+
+window.addEventListener('place-image', handlePlaceImage)
+onBeforeUnmount(() => window.removeEventListener('place-image', handlePlaceImage))
 
 const handleCreateLot = () => {
   if (newLot.value.width && newLot.value.height) {
@@ -201,7 +191,8 @@ const handleCreateLot = () => {
 }
 
 const handleAddRoom = (room) => {
-  plantStore.addRoom(room)
+  const addedRoom = plantStore.addRoom(room)
+  selectedElement.value = { type: 'room', id: addedRoom.id }
   closeRoomModal()
 }
 
@@ -212,11 +203,66 @@ const handleUpdateRoom = (updatedRoom) => {
 
 const selectRoomToEdit = (room) => {
   selectedRoom.value = room
+  selectedElement.value = { type: 'room', id: room.id }
   isRoomModalOpen.value = true
 }
 
-const openAddRoomModal = () => {
+const selectElement = (selection) => {
+  selectedElement.value = selection?.type === 'room'
+    ? { type: 'room', id: selection.id }
+    : { type: 'lot' }
+}
+
+const updateSelectedProperty = ({ field, value }) => {
+  const item = selectedItem.value
+  if (!item) return
+
+  if (field === 'width' || field === 'height') {
+    if (selectedElement.value.type === 'lot' && value < 0.1) {
+      alert('O terreno deve ter pelo menos 0,1 m nessa dimensão.')
+      return
+    }
+
+    if (selectedElement.value.type === 'lot') {
+      const roomLimits = plantStore.rooms.map(room => field === 'width'
+        ? room.x + room.width
+        : room.y + room.height)
+      const imageLimits = plantStore.placedImages.map(image => field === 'width'
+        ? image.x + image.scaleMeters
+        : image.y + image.scaleMeters * (image.vbHeight / (image.vbWidth || 1)))
+      const requiredSize = Math.max(0, ...roomLimits, ...imageLimits)
+      if (value < requiredSize) {
+        alert(`O terreno precisa ter pelo menos ${requiredSize.toFixed(2)} m para conter os elementos existentes.`)
+        return
+      }
+      plantStore.updateLot({ [field]: value })
+      return
+    }
+
+    if (value < 0.5) {
+      alert('O objeto deve ter pelo menos 0,5 m nessa dimensão.')
+      return
+    }
+
+    const maxSize = field === 'width'
+      ? plantStore.lot.width - item.x
+      : plantStore.lot.height - item.y
+    if (value > maxSize) {
+      alert(`A dimensão não pode ultrapassar o limite do terreno (${maxSize.toFixed(2)} m).`)
+      return
+    }
+  }
+
+  if (selectedElement.value.type === 'room') {
+    plantStore.updateRoom(item.id, { ...item, [field]: value })
+  } else {
+    plantStore.updateLot({ [field]: value })
+  }
+}
+
+const openAddRoomModal = (type = 'room') => {
   selectedRoom.value = null
+  newObjectType.value = type
   isRoomModalOpen.value = true
 }
 
@@ -225,31 +271,11 @@ const closeRoomModal = () => {
   selectedRoom.value = null
 }
 
-const deleteRoom = (id) => {
-  if (confirm('Tem certeza que deseja deletar este cômodo?')) {
-    plantStore.deleteRoom(id)
-    if (selectedRoom.value?.id === id) {
-      selectedRoom.value = null
-    }
-  }
-}
-
-const editLot = () => {
-  if (confirm('Editar o lote irá limpar todos os cômodos. Deseja continuar?')) {
-    const newWidth = prompt('Nova largura (metros):', plantStore.lot.width)
-    if (newWidth) {
-      const newHeight = prompt('Nova altura (metros):', plantStore.lot.height)
-      if (newHeight) {
-        plantStore.createLot(newWidth, newHeight)
-      }
-    }
-  }
-}
-
 const resetProject = () => {
   if (confirm('Isto irá limpar todo o projeto. Deseja continuar?')) {
     plantStore.resetProject()
     selectedRoom.value = null
+    selectedElement.value = { type: 'lot' }
   }
 }
 
@@ -285,9 +311,11 @@ const handleFileImport = async (event) => {
     }
 
     selectedRoom.value = null
+    selectedElement.value = { type: 'lot' }
     isRoomModalOpen.value = false
-  } catch {
-    alert('Não foi possível carregar o arquivo. Verifique se o JSON está válido.')
+  } catch (error) {
+    console.error('Não foi possível importar o projeto.', error)
+    alert(`Não foi possível carregar o arquivo. ${error instanceof Error ? error.message : 'Verifique se o projeto é válido.'}`)
   } finally {
     event.target.value = ''
   }
@@ -707,6 +735,243 @@ const handleFileImport = async (event) => {
   .details-panel {
     border-left: none;
     border-top: 1px solid #e2e8f0;
+  }
+}
+
+.editor-shell {
+  height: 100vh;
+  min-height: 560px;
+  overflow: hidden;
+  background: #f4f5f7;
+}
+
+.top-bar {
+  height: 58px;
+  flex: 0 0 58px;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-shadow: none;
+  z-index: 2;
+}
+
+.brand-area {
+  gap: 10px;
+  font-size: 13px;
+}
+
+.brand-area > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-name {
+  color: #7a8089;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.top-actions {
+  gap: 8px;
+}
+
+.action-button {
+  min-height: 34px;
+  padding: 0 13px;
+  color: #30343a;
+  background: #fff;
+  border: 1px solid #d9dde2;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.action-primary {
+  color: #fff;
+  background: #1687f8;
+  border-color: #1687f8;
+}
+
+.editor-body {
+  grid-template-columns: 250px minmax(0, 1fr) 310px;
+  height: calc(100vh - 58px);
+  overflow: hidden;
+}
+
+.resources-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-right: 1px solid #e4e6e9;
+}
+
+.resource-heading {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.resource-heading h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.resource-content {
+  padding: 14px;
+  overflow: auto;
+}
+
+.wall-settings {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.wall-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.wall-settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.wall-settings input {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.new-room-button {
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid #d8e8fa;
+  border-radius: 6px;
+  background: #eef6ff;
+  color: #126cc3;
+  text-align: left;
+  font-size: 12px;
+}
+
+.new-room-button span {
+  margin-right: 6px;
+  font-size: 17px;
+  vertical-align: -1px;
+}
+
+.project-summary {
+  margin-top: auto;
+  padding: 15px 16px;
+  border-top: 1px solid #e8eaed;
+}
+
+.project-summary h3 {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.project-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  color: #6e747d;
+  font-size: 11px;
+}
+
+.project-summary strong {
+  color: #30343a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.workspace-panel {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background: #f4f5f7;
+}
+
+.workspace-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.modal-content {
+  border-radius: 10px;
+}
+
+@media (max-width: 1024px) {
+  .editor-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .editor-body {
+    height: auto;
+    overflow: visible;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .resources-panel {
+    border-right: 0;
+    border-bottom: 1px solid #e4e6e9;
+  }
+
+  .resource-content {
+    max-height: 270px;
+  }
+
+  .project-summary {
+    display: none;
+  }
+
+  .workspace-panel {
+    height: 65vh;
+    min-height: 420px;
+    padding: 8px;
+  }
+
+  .details-panel {
+    padding: 0;
+  }
+
+  .workspace-canvas {
+    height: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .top-bar {
+    padding: 0 10px;
+  }
+
+  .top-actions {
+    gap: 5px;
+  }
+
+  .action-button {
+    padding: 0 8px;
   }
 }
 </style>
