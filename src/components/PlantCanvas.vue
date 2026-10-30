@@ -342,6 +342,37 @@
             </g>
           </g>
 
+          <g v-if="showOutlines" class="openings" pointer-events="none">
+            <g
+              v-for="item in renderedOpenings"
+              :key="item.opening.id"
+              :transform="item.transform"
+              :data-opening-id="item.opening.id"
+              :class="item.opening.type === 'door' ? 'door-opening' : 'window-opening'"
+            >
+              <rect
+                x="0"
+                :y="-item.thickness * scale / 2"
+                :width="item.opening.width * scale"
+                :height="item.thickness * scale"
+                :fill="item.opening.type === 'window' ? '#e0f2fe' : '#ffffff'"
+                stroke="#222222"
+                stroke-width="1.5"
+              />
+              <template v-if="item.opening.type === 'door'">
+                <line
+                  :x1="item.hingePoint[0] * scale"
+                  y1="0"
+                  :x2="item.leafEnd[0] * scale"
+                  :y2="item.leafEnd[1] * scale"
+                  stroke="#222222"
+                  stroke-width="1.5"
+                />
+                <path :d="item.arc" fill="none" stroke="#222222" stroke-width="1" />
+              </template>
+            </g>
+          </g>
+
           <!-- Objects ordered by type and stacking position -->
           <g class="rooms">
             <g
@@ -548,8 +579,36 @@
               {{ plantStore.lot.height }} m
             </text>
           </g>
+          <g class="opening-controls">
+            <g
+              v-for="item in renderedOpenings"
+              :key="item.opening.id"
+              :transform="item.transform"
+              class="opening-control"
+              role="button"
+              tabindex="0"
+              :aria-label="`${item.opening.type === 'door' ? 'Porta' : 'Janela'} de ${item.opening.width} m`"
+              @mousedown.stop
+              @click.stop="emit('select-element', { type: 'opening', id: item.opening.id })"
+              @keydown.enter.stop.prevent="emit('select-element', { type: 'opening', id: item.opening.id })"
+            >
+              <rect
+                x="0"
+                :y="-Math.max(item.thickness * scale, 12) / 2"
+                :width="item.opening.width * scale"
+                :height="Math.max(item.thickness * scale, 12)"
+                fill="transparent"
+                :stroke="selectedOpeningId === item.opening.id ? '#1687f8' : 'none'"
+                stroke-width="1.5"
+                stroke-dasharray="5 4"
+                style="cursor: pointer"
+              />
+            </g>
+          </g>
         </svg>
       </div>
+
+      <div v-if="interactionError" class="interaction-error" role="alert">{{ interactionError }}</div>
 
       <div class="canvas-toolbar">
         <button type="button" class="toolbar-icon active" title="Selecionar">↖</button>
@@ -608,9 +667,14 @@
 import { ref, computed, onBeforeUnmount, onMounted, nextTick, watch } from 'vue'
 import { usePlantStore } from '../stores/plantStore'
 import { buildWallRectangles, buildWallSnapTargets } from '../walls'
+import { getOpeningGeometry } from '../openings'
 
 const props = defineProps({
   selectedRoomId: {
+    type: [Number, String],
+    default: null
+  },
+  selectedOpeningId: {
     type: [Number, String],
     default: null
   },
@@ -627,6 +691,17 @@ const roomObjects = computed(() => plantStore.orderedObjects.filter(room => room
 const wallRectangles = computed(() => buildWallRectangles(roomObjects.value))
 const BASE_SCALE = 38
 const scale = ref(BASE_SCALE)
+const interactionError = ref('')
+const renderedOpenings = computed(() => plantStore.openings.map(opening => {
+  const geometry = getOpeningGeometry(opening, roomObjects.value)
+  const { origin, tangent, normal, closedEnd, leafEnd, arcSweep } = geometry
+  const s = scale.value
+  return {
+    ...geometry, opening,
+    transform: `matrix(${tangent[0]} ${tangent[1]} ${normal[0]} ${normal[1]} ${origin[0] * s} ${origin[1] * s})`,
+    arc: `M ${closedEnd[0] * s} ${closedEnd[1] * s} A ${opening.width * s} ${opening.width * s} 0 0 ${arcSweep} ${leafEnd[0] * s} ${leafEnd[1] * s}`
+  }
+}))
 const zoomMenuOpen = ref(false)
 const snapMenuOpen = ref(false)
 const disableAllSnaps = ref(false)
@@ -964,6 +1039,7 @@ const startDrag = (event, room) => {
   if (event.button !== 0) return // Only left click
 
   closeContextMenu()
+  interactionError.value = ''
 
   draggingRoom.value = room
   const pointer = getPointerInMeters(event)
@@ -1035,6 +1111,7 @@ const startResize = (event, room, edge) => {
 
   event.stopPropagation()
   closeContextMenu()
+  interactionError.value = ''
   const pointer = getPointerInMeters(event)
 
   resizingRoom.value = {
@@ -1046,6 +1123,17 @@ const startResize = (event, room, edge) => {
     initialY: room.y,
     initialWidth: room.width,
     initialHeight: room.height
+  }
+}
+
+const canApplyRoomGeometry = (room, changes) => {
+  try {
+    plantStore.validateRoomUpdate(room.id, changes)
+    interactionError.value = ''
+    return true
+  } catch (error) {
+    interactionError.value = error.message
+    return false
   }
 }
 
@@ -1112,8 +1200,8 @@ const handleMouseMove = (event) => {
     }
 
     const precision = draggingRoom.value.type === 'furniture' ? 9 : 2
-    draggingRoom.value.x = parseFloat(newX.toFixed(precision))
-    draggingRoom.value.y = parseFloat(newY.toFixed(precision))
+    const changes = { x: parseFloat(newX.toFixed(precision)), y: parseFloat(newY.toFixed(precision)) }
+    if (canApplyRoomGeometry(draggingRoom.value, changes)) Object.assign(draggingRoom.value, changes)
     return
   }
 
@@ -1156,10 +1244,14 @@ const handleMouseMove = (event) => {
     : { x: nextX, y: nextY, width: nextWidth, height: nextHeight }
 
   const precision = room.type === 'furniture' ? 9 : 2
-  room.x = parseFloat(Math.min(Math.max(snappedResize.x, 0), plantStore.lot.width - snappedResize.width).toFixed(precision))
-  room.y = parseFloat(Math.min(Math.max(snappedResize.y, 0), plantStore.lot.height - snappedResize.height).toFixed(precision))
-  room.width = parseFloat(Math.min(Math.max(snappedResize.width, MIN_ROOM_SIZE), plantStore.lot.width - room.x).toFixed(precision))
-  room.height = parseFloat(Math.min(Math.max(snappedResize.height, MIN_ROOM_SIZE), plantStore.lot.height - room.y).toFixed(precision))
+  const x = parseFloat(Math.min(Math.max(snappedResize.x, 0), plantStore.lot.width - snappedResize.width).toFixed(precision))
+  const y = parseFloat(Math.min(Math.max(snappedResize.y, 0), plantStore.lot.height - snappedResize.height).toFixed(precision))
+  const changes = {
+    x, y,
+    width: parseFloat(Math.min(Math.max(snappedResize.width, MIN_ROOM_SIZE), plantStore.lot.width - x).toFixed(precision)),
+    height: parseFloat(Math.min(Math.max(snappedResize.height, MIN_ROOM_SIZE), plantStore.lot.height - y).toFixed(precision))
+  }
+  if (canApplyRoomGeometry(room, changes)) Object.assign(room, changes)
 }
 
 const handleMouseUp = () => {
@@ -1270,13 +1362,15 @@ const handleContextDuplicate = () => {
     }
   }
 
-  plantStore.addRoom({
-    ...targetRoom,
-    id: undefined,
-    name: `${targetRoom.name} (cópia)`,
-    x: parseFloat(nextX.toFixed(2)),
-    y: parseFloat(nextY.toFixed(2))
-  })
+  try {
+    plantStore.duplicateRoom(targetRoom.id, {
+      name: `${targetRoom.name} (cópia)`,
+      x: parseFloat(nextX.toFixed(2)),
+      y: parseFloat(nextY.toFixed(2))
+    })
+  } catch (error) {
+    alert(error.message)
+  }
 
   closeContextMenu()
 }
@@ -1311,13 +1405,17 @@ const handleContextSwapDimensions = () => {
   const nextX = Math.min(targetRoom.x, plantStore.lot.width - swappedWidth)
   const nextY = Math.min(targetRoom.y, plantStore.lot.height - swappedHeight)
 
-  plantStore.updateRoom(targetRoom.id, {
-    ...targetRoom,
-    width: parseFloat(swappedWidth.toFixed(2)),
-    height: parseFloat(swappedHeight.toFixed(2)),
-    x: parseFloat(nextX.toFixed(2)),
-    y: parseFloat(nextY.toFixed(2))
-  })
+  try {
+    plantStore.updateRoom(targetRoom.id, {
+      ...targetRoom,
+      width: parseFloat(swappedWidth.toFixed(2)),
+      height: parseFloat(swappedHeight.toFixed(2)),
+      x: parseFloat(nextX.toFixed(2)),
+      y: parseFloat(nextY.toFixed(2))
+    })
+  } catch (error) {
+    alert(error.message)
+  }
 
   closeContextMenu()
 }
@@ -1427,7 +1525,7 @@ const exportSvg = async () => {
     const svg = canvas.value.cloneNode(true)
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
     svg.setAttribute('viewBox', `0 0 ${canvasWidth.value} ${canvasHeight.value}`)
-    svg.querySelectorAll('.lot-selection-outline, .room-selection-outline, .resize-handle').forEach((element) => element.remove())
+    svg.querySelectorAll('.lot-selection-outline, .room-selection-outline, .resize-handle, .opening-controls').forEach((element) => element.remove())
     svg.querySelectorAll('.room-selected').forEach((element) => element.classList.remove('room-selected'))
 
     const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
@@ -1615,9 +1713,8 @@ onMounted(async () => {
 })
 
 const fitSelection = () => {
-  const room = props.selectedRoomId == null
-    ? null
-    : plantStore.getRoomById(props.selectedRoomId)
+  const selectedOpening = plantStore.openings.find(opening => opening.id === props.selectedOpeningId)
+  const room = plantStore.getRoomById(selectedOpening?.roomId ?? props.selectedRoomId)
   if (!room) {
     fitCanvas()
     return
@@ -1739,6 +1836,19 @@ const removeGuide = (type, value) => {
 </script>
 
 <style scoped lang="scss">
+.interaction-error {
+  position: absolute;
+  left: 16px;
+  bottom: 76px;
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  padding: 10px 14px;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  background: #fff1f2;
+  color: #b91c1c;
+  pointer-events: none;
+}
 .plant-canvas-container {
   display: flex;
   flex-direction: column;

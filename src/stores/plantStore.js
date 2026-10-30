@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { OBJECT_TYPES, getObjectDefaults, normalizeObjectType } from '../objectTypes.js'
 import { normalizeWallSettings, normalizeWallThicknesses } from '../walls.js'
+import { normalizeOpenings } from '../openings.js'
 
 const STORAGE_KEY = 'editor-planta-project-v1'
 
@@ -85,6 +86,7 @@ export const usePlantStore = defineStore('plant', () => {
 
   const lot = ref(null)
   const rooms = ref([])
+  const openings = ref([])
   const orderedObjects = computed(() => OBJECT_TYPES.flatMap(
     option => rooms.value.filter(room => room.type === option.value)
   ))
@@ -115,10 +117,11 @@ export const usePlantStore = defineStore('plant', () => {
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        version: 2,
+        version: 3,
         wallSettings: wallSettings.value,
         lot: lot.value,
         rooms: rooms.value,
+        openings: openings.value,
         guides: guides.value,
         placedImages: placedImages.value
       })
@@ -135,9 +138,11 @@ export const usePlantStore = defineStore('plant', () => {
         wallThicknesses: projectData.version >= 2 ? room.wallThicknesses : undefined
       }))
       : []
+    const nextOpenings = normalizeOpenings(projectData.openings === undefined ? [] : projectData.openings, nextRooms)
     wallSettings.value = nextWallSettings
     lot.value = normalizeLot(projectData.lot)
     rooms.value = nextRooms
+    openings.value = nextOpenings
 
     // load guides if present
     if (projectData.guides && typeof projectData.guides === 'object') {
@@ -183,10 +188,11 @@ export const usePlantStore = defineStore('plant', () => {
   const exportProject = () => {
     return JSON.stringify(
       {
-        version: 2,
+        version: 3,
         wallSettings: wallSettings.value,
         lot: lot.value,
         rooms: rooms.value,
+        openings: openings.value,
         guides: guides.value,
         placedImages: placedImages.value
       },
@@ -207,6 +213,7 @@ export const usePlantStore = defineStore('plant', () => {
       createdAt: new Date().toLocaleString()
     }
     rooms.value = []
+    openings.value = []
     guides.value = { vertical: [], horizontal: [] }
     placedImages.value = []
     wallSettings.value = normalizeWallSettings()
@@ -226,25 +233,72 @@ export const usePlantStore = defineStore('plant', () => {
 
   const addRoom = (room) => {
     const newRoom = normalizeRoom(room)
+    normalizeOpenings(openings.value, [...rooms.value, newRoom])
     rooms.value.push(newRoom)
     persistProject()
     return newRoom
   }
 
-  const updateRoom = (id, updatedRoom) => {
+  const validateRoomUpdate = (id, updatedRoom, { removeOpenings = false } = {}) => {
+    const nextRooms = rooms.value.map(room => room.id === id
+      ? normalizeRoom({ ...room, ...updatedRoom, id })
+      : room)
+    normalizeOpenings(removeOpenings ? openings.value.filter(opening => opening.roomId !== id) : openings.value, nextRooms)
+  }
+
+  const updateRoom = (id, updatedRoom, { removeOpenings = false } = {}) => {
     const index = rooms.value.findIndex(r => r.id === id)
     if (index !== -1) {
+      validateRoomUpdate(id, updatedRoom, { removeOpenings })
       rooms.value[index] = {
         ...rooms.value[index],
         ...normalizeRoom({ ...rooms.value[index], ...updatedRoom }),
         id
       }
+      if (removeOpenings) openings.value = openings.value.filter(opening => opening.roomId !== id)
       persistProject()
     }
   }
 
   const deleteRoom = (id) => {
     rooms.value = rooms.value.filter(r => r.id !== id)
+    openings.value = openings.value.filter(opening => opening.roomId !== id)
+    persistProject()
+  }
+
+  const duplicateRoom = (id, changes = {}) => {
+    const source = rooms.value.find(room => room.id === id)
+    if (!source) throw new Error('O objeto a duplicar não foi encontrado.')
+    const copy = normalizeRoom({ ...source, ...changes, id: crypto.randomUUID() })
+    const nextOpenings = normalizeOpenings([
+      ...openings.value,
+      ...openings.value.filter(opening => opening.roomId === id).map(opening => ({
+        ...opening, id: crypto.randomUUID(), roomId: copy.id
+      }))
+    ], [...rooms.value, copy])
+    rooms.value.push(copy)
+    openings.value = nextOpenings
+    persistProject()
+    return copy
+  }
+
+  const addOpening = (opening) => {
+    const next = normalizeOpenings([...openings.value, { ...opening, id: crypto.randomUUID() }], rooms.value)
+    openings.value = next
+    persistProject()
+    return next[next.length - 1]
+  }
+
+  const updateOpening = (id, changes) => {
+    if (!openings.value.some(opening => opening.id === id)) throw new Error('A abertura não foi encontrada.')
+    openings.value = normalizeOpenings(openings.value.map(opening => opening.id === id
+      ? { ...opening, ...changes, id }
+      : opening), rooms.value)
+    persistProject()
+  }
+
+  const deleteOpening = (id) => {
+    openings.value = openings.value.filter(opening => opening.id !== id)
     persistProject()
   }
 
@@ -339,6 +393,7 @@ export const usePlantStore = defineStore('plant', () => {
   const resetProject = () => {
     lot.value = null
     rooms.value = []
+    openings.value = []
     guides.value = { vertical: [], horizontal: [] }
     placedImages.value = []
     wallSettings.value = normalizeWallSettings()
@@ -383,6 +438,12 @@ export const usePlantStore = defineStore('plant', () => {
   return {
     lot,
     rooms,
+    openings,
+    addOpening,
+    updateOpening,
+    deleteOpening,
+    duplicateRoom,
+    validateRoomUpdate,
     orderedObjects,
     canMoveObject,
     moveObject,

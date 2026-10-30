@@ -113,6 +113,20 @@
       <p class="layer-hint">Cômodos abaixo de móveis; marcações acima de móveis. Cada clique move uma posição no mesmo tipo.</p>
     </section>
     <section v-if="isObject && item.type === 'room'" class="property-section">
+      <h3>Portas e janelas</h3>
+      <div class="layer-actions">
+        <button type="button" @click="emit('add-opening', 'window')">Adicionar janela</button>
+        <button type="button" @click="emit('add-opening', 'door')">Adicionar porta</button>
+      </div>
+      <ul class="opening-list">
+        <li v-for="opening in openings" :key="opening.id">
+          <button type="button" @click="emit('select-opening', opening.id)">
+            {{ opening.type === 'door' ? 'Porta' : 'Janela' }} — {{ OPENING_SIDES.find(side => side.value === opening.side).label }} — {{ opening.width }} m
+          </button>
+        </li>
+      </ul>
+    </section>
+    <section v-if="isObject && item.type === 'room'" class="property-section">
       <div class="property-summary">
         <span>Área do cômodo</span>
         <strong>{{ (item.width * item.height).toFixed(2) }} m²</strong>
@@ -128,6 +142,7 @@
 <script setup>
 import { computed } from 'vue'
 import { OBJECT_TYPES } from '../objectTypes'
+import { OPENING_SIDES } from '../openings'
 
 const props = defineProps({
   item: {
@@ -139,10 +154,11 @@ const props = defineProps({
     default: false
   },
   canMoveForward: Boolean,
-  canMoveBackward: Boolean
+  canMoveBackward: Boolean,
+  openings: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['update', 'reorder'])
+const emit = defineEmits(['update', 'reorder', 'add-opening', 'select-opening'])
 const isRoom = computed(() => props.isObject && props.item.type === 'room')
 
 const edges = [
@@ -183,6 +199,15 @@ const updateEdgeWidth = (edge, event) => {
 </script>
 
 <style scoped>
+.opening-list { padding-left: 18px; margin-top: 12px; }
+.opening-list button {
+  border: 0;
+  background: none;
+  color: #1769aa;
+  text-align: left;
+  cursor: pointer;
+  padding: 6px 0;
+}
 select,
 .property-field input[type='text'] {
   width: 100%;

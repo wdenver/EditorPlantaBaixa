@@ -38,7 +38,7 @@ test('global colors and per-side thickness survive export, import, edits and dup
   store.updateRoom(1, { name: 'Sala' })
   store.addRoom({ ...store.getRoomById(1), id: 2 })
   const saved = store.exportProject()
-  assert.equal(JSON.parse(saved).version, 2)
+  assert.equal(JSON.parse(saved).version, 3)
   store.resetProject()
   assert.deepEqual(store.wallSettings, DEFAULT_WALL_SETTINGS)
   store.loadProjectFromData(JSON.parse(saved))

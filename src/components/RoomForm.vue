@@ -269,9 +269,8 @@ const handleSubmit = () => {
     emit('update-room', payload)
   } else {
     emit('add-room', payload)
+    resetForm()
   }
-
-  resetForm()
 }
 
 const cancelEdit = () => {

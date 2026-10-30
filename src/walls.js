@@ -29,7 +29,7 @@ export const normalizeWallSettings = (settings) => Object.fromEntries(
 // Only absorb floating-point noise, not the distance used by interactive snap.
 const coordinate = value => Number(value.toFixed(9))
 
-const buildWallSegments = (rooms) => {
+export const buildWallSegments = (rooms) => {
   const axes = new Map()
   const add = (horizontal, axis, start, end, thickness) => {
     if (thickness <= 0 || end <= start) return

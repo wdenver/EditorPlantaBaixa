@@ -44,6 +44,35 @@ const withCanvas = (run) => {
   }
 }
 
+test('resize previews reject invalid opening geometry without mutating the room', () => withCanvas((state, store) => {
+  const room = store.addRoom({ id: 1, width: 4, height: 3, x: 1, y: 1 })
+  store.addOpening({ type: 'window', roomId: 1, side: 'top', offset: 2, width: 1 })
+  state.disableAllSnaps = true
+  state.resizingRoom = {
+    room, edge: 'right', startX: 5, startY: 1,
+    initialX: 1, initialY: 1, initialWidth: 4, initialHeight: 3
+  }
+  const svg = { getBoundingClientRect: () => ({ left: 0, top: 0 }) }
+  state.handleMouseMove({ clientX: 2 * state.scale, clientY: state.scale, currentTarget: svg })
+  assert.equal(room.width, 4)
+  assert.match(state.interactionError, /caber/)
+  state.handleMouseMove({ clientX: 6 * state.scale, clientY: state.scale, currentTarget: svg })
+  assert.equal(room.width, 5)
+  assert.equal(state.interactionError, '')
+  state.handleMouseUp()
+  assert.equal(store.getRoomById(1).width, 5)
+}))
+
+test('moving a room cannot overlap openings on a neighboring wall', () => withCanvas((state, store) => {
+  const room = store.addRoom({ id: 1, width: 4, height: 3, x: 1, y: 1 })
+  store.addRoom({ id: 2, width: 4, height: 3, x: 7, y: 4 })
+  store.addOpening({ type: 'door', roomId: 1, side: 'bottom', offset: 1, width: 1 })
+  store.addOpening({ type: 'window', roomId: 2, side: 'top', offset: 1, width: 1 })
+  assert.equal(state.canApplyRoomGeometry(room, { x: 7, y: 1 }), false)
+  assert.equal(room.x, 1)
+  assert.match(state.interactionError, /sobrepor/)
+}))
+
 test('grid spacing accepts meters and rejects invalid values visibly', () => withCanvas(state => {
   const alerts = []
   globalThis.alert = message => alerts.push(message)

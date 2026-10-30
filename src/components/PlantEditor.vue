@@ -65,6 +65,8 @@
             </button>
             <button type="button" class="new-room-button" @click="openAddRoomModal('furniture')">＋ Adicionar móvel</button>
             <button type="button" class="new-room-button" @click="openAddRoomModal('marking')">＋ Adicionar marcação</button>
+            <button type="button" class="new-room-button" @click="openOpeningModal('window')">＋ Adicionar janela</button>
+            <button type="button" class="new-room-button" @click="openOpeningModal('door')">＋ Adicionar porta</button>
             <details class="wall-settings" open>
               <summary>Paredes — configurações globais</summary>
               <label>
@@ -101,6 +103,7 @@
             class="workspace-canvas"
             :selected-room-id="selectedElement.type === 'room' ? selectedElement.id : null"
             :selected-element-type="selectedElement.type"
+            :selected-opening-id="selectedOpening?.id"
             @edit-room="selectRoomToEdit"
             @select-element="selectElement"
             @add-room="openAddRoomModal"
@@ -109,14 +112,41 @@
           />
         </main>
 
+        <aside v-if="selectedOpening" class="opening-properties">
+          <h2>{{ selectedOpening.type === 'door' ? 'Porta' : 'Janela' }}</h2>
+          <OpeningForm :opening="selectedOpening" />
+          <button type="button" class="delete-opening-button" @click="deleteSelectedOpening">Apagar abertura</button>
+        </aside>
         <PropertiesPanel
+          v-else
+          :key="propertiesRevision"
           :item="selectedItem"
           :is-object="selectedElement.type === 'room'"
           :can-move-forward="plantStore.canMoveObject(selectedItem.id, 1)"
           :can-move-backward="plantStore.canMoveObject(selectedItem.id, -1)"
+          :openings="plantStore.openings.filter(opening => opening.roomId === selectedItem.id)"
+          @add-opening="openOpeningModal"
+          @select-opening="selectElement({ type: 'opening', id: $event })"
           @update="updateSelectedProperty"
           @reorder="plantStore.moveObject(selectedItem.id, $event)"
         />
+      </div>
+
+      <div v-if="isOpeningModalOpen" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Adicionar {{ newOpeningType === 'door' ? 'porta' : 'janela' }}</h3>
+            <button type="button" class="modal-close" aria-label="Fechar" @click="isOpeningModalOpen = false">✕</button>
+          </div>
+          <div class="opening-modal-body">
+            <OpeningForm
+              :initial-type="newOpeningType"
+              :initial-room-id="openingRoomId"
+              @saved="openingSaved"
+              @cancel="isOpeningModalOpen = false"
+            />
+          </div>
+        </div>
       </div>
 
       <div v-if="isRoomModalOpen" class="modal-overlay">
@@ -153,6 +183,7 @@ import PlantCanvas from './PlantCanvas.vue'
 import RoomForm from './RoomForm.vue'
 import SvgPalette from './SvgPalette.vue'
 import PropertiesPanel from './PropertiesPanel.vue'
+import OpeningForm from './OpeningForm.vue'
 
 const plantStore = usePlantStore()
 const newLot = ref({ width: '', height: '' })
@@ -161,6 +192,37 @@ const newObjectType = ref('room')
 const selectedElement = ref({ type: 'lot' })
 const isRoomModalOpen = ref(false)
 const fileInput = ref(null)
+const propertiesRevision = ref(0)
+const isOpeningModalOpen = ref(false)
+const newOpeningType = ref('window')
+const openingRoomId = ref(null)
+const selectedOpening = computed(() => selectedElement.value.type === 'opening'
+  ? plantStore.openings.find(opening => opening.id === selectedElement.value.id)
+  : null)
+
+const openOpeningModal = (type = 'window') => {
+  const rooms = plantStore.rooms.filter(room => room.type === 'room')
+  if (!rooms.length) {
+    alert('Adicione um cômodo antes de inserir portas e janelas.')
+    return
+  }
+  const selected = plantStore.getRoomById(selectedElement.value.id)
+  openingRoomId.value = selected?.type === 'room' ? selected.id : rooms[0].id
+  newOpeningType.value = type
+  isOpeningModalOpen.value = true
+}
+
+const openingSaved = (id) => {
+  selectedElement.value = { type: 'opening', id }
+  isOpeningModalOpen.value = false
+}
+
+const deleteSelectedOpening = () => {
+  if (!confirm('Tem certeza que deseja apagar esta abertura?')) return
+  const roomId = selectedOpening.value.roomId
+  plantStore.deleteOpening(selectedOpening.value.id)
+  selectedElement.value = { type: 'room', id: roomId }
+}
 
 const selectedItem = computed(() => selectedElement.value.type === 'room'
   ? plantStore.getRoomById(selectedElement.value.id) || plantStore.lot
@@ -196,9 +258,25 @@ const handleAddRoom = (room) => {
   closeRoomModal()
 }
 
+const applyRoomUpdate = (id, changes) => {
+  const removeOpenings = changes.type && changes.type !== 'room' &&
+    plantStore.openings.some(opening => opening.roomId === id)
+  if (removeOpenings && !confirm('Mudar o tipo deste cômodo irá apagar suas portas e janelas. Deseja continuar?')) {
+    propertiesRevision.value++
+    return false
+  }
+  try {
+    plantStore.updateRoom(id, changes, { removeOpenings })
+    return true
+  } catch (error) {
+    alert(error.message)
+    propertiesRevision.value++
+    return false
+  }
+}
+
 const handleUpdateRoom = (updatedRoom) => {
-  plantStore.updateRoom(updatedRoom.id, updatedRoom)
-  closeRoomModal()
+  if (applyRoomUpdate(updatedRoom.id, updatedRoom)) closeRoomModal()
 }
 
 const selectRoomToEdit = (room) => {
@@ -208,8 +286,8 @@ const selectRoomToEdit = (room) => {
 }
 
 const selectElement = (selection) => {
-  selectedElement.value = selection?.type === 'room'
-    ? { type: 'room', id: selection.id }
+  selectedElement.value = ['room', 'opening'].includes(selection?.type)
+    ? { type: selection.type, id: selection.id }
     : { type: 'lot' }
 }
 
@@ -254,7 +332,7 @@ const updateSelectedProperty = ({ field, value }) => {
   }
 
   if (selectedElement.value.type === 'room') {
-    plantStore.updateRoom(item.id, { ...item, [field]: value })
+    applyRoomUpdate(item.id, { ...item, [field]: value })
   } else {
     plantStore.updateLot({ [field]: value })
   }
@@ -323,6 +401,23 @@ const handleFileImport = async (event) => {
 </script>
 
 <style scoped>
+.opening-properties {
+  padding: 20px;
+  overflow-y: auto;
+  background: #fff;
+  border-left: 1px solid #e4e6e9;
+}
+.opening-properties h2 { margin-bottom: 20px; }
+.opening-modal-body { padding: 24px; }
+.delete-opening-button {
+  margin-top: 24px;
+  padding: 8px;
+  color: #b91c1c;
+  background: #fff;
+  border: 1px solid #b91c1c;
+  border-radius: 5px;
+  cursor: pointer;
+}
 .editor-container {
   min-height: 100vh;
   background: #eef2f5;

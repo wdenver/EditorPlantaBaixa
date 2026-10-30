@@ -22,6 +22,7 @@ Um aplicativo web interativo desenvolvido com Vue.js 3 para criar e organizar pl
 - **Paredes físicas**: Retângulos centralizados nas arestas dos cômodos, com espessura inicial de 15 cm, editável por lado e proporcional ao zoom. Cantos e trechos compartilhados são unidos visualmente, sem linhas internas.
 - **Cores globais das paredes**: Preenchimento cinza (`#808080`) e borda escura (`#222222`), configuráveis para todo o projeto. O contorno fino permanece com 1 px na tela.
 - **Espessura por aresta**: Cômodos usam centímetros; terreno, móveis e marcações mantêm seus traços em pixels.
+- **Portas e janelas**: Aberturas vinculadas aos lados dos cômodos, com largura e posição em metros. Janelas são retângulos sobre as paredes; portas também exibem folha e arco de abertura de 90°, com dobradiça e sentido configuráveis.
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -124,7 +125,22 @@ O tipo, a aparência e a ordem são preservados ao salvar, reabrir ou recarregar
 - A divisa continua visível se pelo menos um dos cômodos tiver a parede ativada. Para abrir a divisa, desative a parede dos dois lados. Espessura zero também desativa o respectivo trecho.
 - Todas as paredes são desenhadas acima dos preenchimentos dos cômodos, mas abaixo de móveis e marcações. A opção **Contornos** também controla a exibição das paredes.
 - Projetos antigos recebem paredes de 15 cm em todos os lados, preservando os lados desativados. Terreno, móveis e marcações não são alterados.
-- O JSON passa a usar `version: 2`, com `wallSettings` para as cores globais e `wallThicknesses` por objeto (valores em metros). Essas configurações também são persistidas no armazenamento local. Projetos novos voltam às cores padrão.
+- O JSON usa `version: 3`, preservando `wallSettings` para as cores globais e `wallThicknesses` por objeto (valores em metros), e incluindo a coleção `openings`. Essas configurações também são persistidas no armazenamento local. Projetos novos voltam às cores padrão.
+
+### Inserir e editar portas e janelas
+
+1. Crie um cômodo e use **Adicionar janela** ou **Adicionar porta** nos recursos à esquerda ou nas propriedades do cômodo.
+2. Escolha o cômodo, a parede, a largura e a distância ao início da parede. Nos lados superior/inferior, a distância é medida da esquerda; nos lados esquerdo/direito, do topo.
+3. Para portas, escolha a dobradiça no início ou no fim e a abertura para dentro ou para fora do cômodo.
+4. Clique em **Inserir abertura**. Para editar, clique na abertura no desenho ou na lista **Portas e janelas** do cômodo; altere os campos e clique em **Aplicar alterações**. Use **Apagar abertura** para removê-la.
+
+- A posição e a espessura são derivadas da parede, sem rotação ou deslocamento livre. Mover o cômodo move suas aberturas; a posição ao longo da parede é editada pelo formulário.
+- Em paredes compartilhadas, a abertura cobre a maior espessura desenhada no seu intervalo. O retângulo é opaco e fica acima das paredes, abaixo de móveis, marcações, imagens e textos. **Contornos** controla também a visibilidade dos símbolos das aberturas.
+- Não é permitido inserir aberturas em paredes desativadas ou com espessura zero, ultrapassar o lado do cômodo ou sobrepor aberturas no mesmo eixo, inclusive em cômodos vizinhos.
+- Redimensionar, inverter dimensões ou alterar paredes é impedido quando a mudança invalidaria uma abertura. Remova ou reposicione a abertura primeiro.
+- Excluir um cômodo exclui suas aberturas; duplicá-lo copia as aberturas com novos identificadores. Mudar seu tipo para móvel ou marcação solicita confirmação antes de remover as aberturas.
+- Cada item de `openings` contém `id`, `type` (`door`/`window`), `roomId`, `side`, `offset` e `width`; portas também contêm `hinge` (`start`/`end`) e `swing` (`inside`/`outside`). Distâncias são em metros.
+- Projetos antigos sem `openings` são carregados com uma lista vazia. Aberturas participam do salvamento, da restauração local e da exportação SVG, sem os controles de seleção.
 
 ## 📊 Interface
 
