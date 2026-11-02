@@ -1,3 +1,5 @@
+import { buildRectangleUnionPolygons } from './geometry.js'
+
 export const WALL_SIDES = ['top', 'right', 'bottom', 'left']
 export const DEFAULT_WALL_THICKNESS = 0.15
 export const DEFAULT_WALL_SETTINGS = Object.freeze({
@@ -114,3 +116,11 @@ export const buildWallRectangles = (rooms) => {
     }
   })
 }
+
+const formatSvgCoordinate = (value) => Number(value.toFixed(6)).toString()
+
+export const buildWallUnionPolygons = (rooms) => buildRectangleUnionPolygons(buildWallRectangles(rooms))
+
+export const buildWallUnionPathData = (rooms) => buildWallUnionPolygons(rooms)
+  .map(path => `M ${path.map(point => `${formatSvgCoordinate(point.x)} ${formatSvgCoordinate(point.y)}`).join(' L ')} Z`)
+  .join(' ')

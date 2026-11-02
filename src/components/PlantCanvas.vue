@@ -1,159 +1,36 @@
 <template>
   <div class="plant-canvas-container">
     <div ref="canvasWrapper" class="canvas-wrapper" @mousedown="startPan" @wheel="handleWheel">
-      <div class="canvas-controls" @mousedown.stop>
-        <button
-          type="button"
-          class="zoom-menu-trigger"
-          :aria-expanded="zoomMenuOpen"
-          @click.stop="zoomMenuOpen = !zoomMenuOpen; snapMenuOpen = false"
-        >
-          {{ Math.round(scale / BASE_SCALE * 100) }}%
-          <span aria-hidden="true">⌄</span>
-        </button>
-        <div v-if="zoomMenuOpen" class="zoom-menu" @click.stop>
-          <button type="button" class="zoom-menu-item" @click="changeZoom(10)">
-            Aumentar zoom <kbd>Ctrl++</kbd>
-          </button>
-          <button type="button" class="zoom-menu-item" @click="changeZoom(-10)">
-            Diminuir zoom <kbd>Ctrl+-</kbd>
-          </button>
-          <div class="zoom-menu-divider"></div>
-          <button type="button" class="zoom-menu-item" @click="fitCanvas">
-            Zoom para caber <kbd>Shift+1</kbd>
-          </button>
-          <button type="button" class="zoom-menu-item" @click="setZoom(50)">
-            Zoom em 50%
-          </button>
-          <button type="button" class="zoom-menu-item" @click="setZoom(100)">
-            Zoom em 100% <kbd>Shift+0</kbd>
-          </button>
-          <button type="button" class="zoom-menu-item" @click="setZoom(200)">
-            Zoom em 200%
-          </button>
-          <button type="button" class="zoom-menu-item" @click="fitSelection">
-            Zoom na seleção <kbd>Shift+2</kbd>
-          </button>
-          <div class="zoom-menu-divider"></div>
-          <button type="button" class="zoom-menu-item" @click="setPixelView(1)">
-            <span>{{ pixelView === 100 ? '✓ ' : '' }}Visualização de pixels 1x</span>
-          </button>
-          <button type="button" class="zoom-menu-item" @click="setPixelView(2)">
-            <span>{{ pixelView === 200 ? '✓ ' : '' }}Visualização de pixels 2x</span>
-          </button>
-          <div class="zoom-menu-divider"></div>
-          <label class="zoom-menu-toggle">
-            <input v-model="showPixelGrid" type="checkbox" />
-            Grade de pixels <kbd>Shift+'</kbd>
-          </label>
-          <div class="zoom-menu-divider"></div>
-          <label class="zoom-menu-toggle">
-            <input v-model="showRulers" type="checkbox" />
-            Réguas <kbd>Shift+R</kbd>
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="showOutlines" type="checkbox" />
-            Contornos
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="showRoomNames" type="checkbox" />
-            Nomes dos cômodos
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="showRoomAreas" type="checkbox" />
-            Áreas
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="showRoomDimensions" type="checkbox" />
-            Dimensões
-          </label>
-        </div>
-        <button
-          type="button"
-          class="zoom-menu-trigger"
-          :aria-expanded="snapMenuOpen"
-          @click.stop="snapMenuOpen = !snapMenuOpen; zoomMenuOpen = false"
-        >
-          Encaixe e grid <span aria-hidden="true">⌄</span>
-        </button>
-        <div v-if="snapMenuOpen" class="zoom-menu" @click.stop>
-          <label class="zoom-menu-toggle">
-            <input v-model="disableAllSnaps" type="checkbox" />
-            Desabilitar todos os snaps
-          </label>
-          <div class="zoom-menu-divider"></div>
-          <div class="zoom-menu-label">Habilitar snaps</div>
-          <label class="zoom-menu-toggle">
-            <input v-model="snapOptions.grid" type="checkbox" />
-            Snap no grid <kbd>Ctrl+Shift+'</kbd>
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="snapOptions.rooms" type="checkbox" />
-            Snap nas paredes e arestas de outros objetos
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="snapOptions.verticalGuides" type="checkbox" />
-            Snap nas guias verticais
-          </label>
-          <label class="zoom-menu-toggle">
-            <input v-model="snapOptions.horizontalGuides" type="checkbox" />
-            Snap nas guias horizontais
-          </label>
-          <div class="zoom-menu-divider"></div>
-          <label class="zoom-menu-toggle">
-            <input v-model="showLayoutGrid" type="checkbox" />
-            Mostrar grid <kbd>Shift+G</kbd>
-          </label>
-          <label class="grid-spacing-field">
-            Espaçamento do grid (m)
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              :value="gridSpacing"
-              @change="updateGridSpacing"
-            />
-          </label>
-        </div>
-      </div>
+      <PlantCanvasControls
+        :scale="scale"
+        :base-scale="BASE_SCALE"
+        :zoom-actions="zoomActions"
+        :zoom-menu-open-ref="controlRefs.zoomMenuOpen"
+        :snap-menu-open-ref="controlRefs.snapMenuOpen"
+        :zoom-popover-ref="controlRefs.zoomPopover"
+        :snap-popover-ref="controlRefs.snapPopover"
+        :disable-all-snaps-ref="controlRefs.disableAllSnaps"
+        :snap-options-ref="controlRefs.snapOptions"
+        :show-layout-grid-ref="controlRefs.showLayoutGrid"
+        :grid-spacing="gridSpacing"
+        :show-pixel-grid-ref="controlRefs.showPixelGrid"
+        :show-rulers-ref="controlRefs.showRulers"
+        :show-outlines-ref="controlRefs.showOutlines"
+        :show-room-names-ref="controlRefs.showRoomNames"
+        :show-room-areas-ref="controlRefs.showRoomAreas"
+        :show-room-dimensions-ref="controlRefs.showRoomDimensions"
+        :update-grid-spacing-value="updateGridSpacingValue"
+      />
 
-      <div v-if="showGuidePanel" class="guides-controls" @click.stop>
-        <div class="guides-column">
-        <h4>Guias Verticais</h4>
-        <div v-if="plantStore.guides.vertical.length === 0" class="muted">Nenhuma guia vertical</div>
-        <div v-for="(g, idx) in plantStore.guides.vertical" :key="`vguide-list-${idx}`" class="guide-row">
-          <input
-            type="number"
-            :min="0"
-            :max="plantStore.lot ? plantStore.lot.width : 100"
-            step="0.1"
-            :value="g"
-            @change="(e) => updateGuide('vertical', idx, e.target.value)"
-          />
-        <button @click="() => removeGuide('vertical', g)" title="Remover">✖</button>
-        </div>
-        <button @click="addVerticalGuide" class="btn-secondary" title="Adicionar guia vertical">+ Guia vertical</button>
-      </div>
-
-      <div class="guides-column">
-        <h4>Guias Horizontais</h4>
-        <div v-if="plantStore.guides.horizontal.length === 0" class="muted">Nenhuma guia horizontal</div>
-        <div v-for="(g, idx) in plantStore.guides.horizontal" :key="`hguide-list-${idx}`" class="guide-row">
-          <input
-            type="number"
-            :min="0"
-            :max="plantStore.lot ? plantStore.lot.height : 100"
-            step="0.1"
-            :value="g"
-            @change="(e) => updateGuide('horizontal', idx, e.target.value)"
-          />
-          <button @click="() => removeGuide('horizontal', g)" title="Remover">✖</button>
-        </div>
-        <button @click="addHorizontalGuide" class="btn-secondary" title="Adicionar guia horizontal">+ Guia horizontal</button>
-      </div>
-     
-        <button @click="clearGuides" class="btn-secondary" title="Remover todas as guias">Limpar guias</button>  
-      </div>
+      <PlantCanvasGuidesPanel
+        :show-guide-panel="showGuidePanel"
+        :plant-store="plantStore"
+        :update-guide-value="updateGuideValue"
+        :remove-guide="removeGuide"
+        :add-vertical-guide="addVerticalGuide"
+        :add-horizontal-guide="addHorizontalGuide"
+        :clear-guides="clearGuides"
+      />
 
       <div class="canvas-surface" :style="{ transform: `translate(${viewportOffset.x}px, ${viewportOffset.y}px)` }" @dragover.prevent @drop="handleDrop">
         <svg
@@ -318,28 +195,22 @@
             />
           </g>
 
-          <g v-if="showOutlines" class="room-walls" pointer-events="none">
-            <!-- Painting all fills last removes internal seams, leaving a 1 px outer border. -->
-            <g :stroke="plantStore.wallSettings.strokeColor" stroke-width="2" fill="none">
-              <rect
-                v-for="(wall, index) in wallRectangles"
-                :key="index"
-                :x="wall.x * scale"
-                :y="wall.y * scale"
-                :width="wall.width * scale"
-                :height="wall.height * scale"
-              />
-            </g>
-            <g :fill="plantStore.wallSettings.fillColor">
-              <rect
-                v-for="(wall, index) in wallRectangles"
-                :key="index"
-                :x="wall.x * scale"
-                :y="wall.y * scale"
-                :width="wall.width * scale"
-                :height="wall.height * scale"
-              />
-            </g>
+          <g v-if="showOutlines && wallPathData" class="room-walls" pointer-events="none">
+            <path
+              :d="wallPathData"
+              :transform="`scale(${scale})`"
+              :fill="plantStore.wallSettings.fillColor"
+              fill-rule="evenodd"
+            />
+            <path
+              :d="wallPathData"
+              :transform="`scale(${scale})`"
+              fill="none"
+              :stroke="plantStore.wallSettings.strokeColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+              vector-effect="non-scaling-stroke"
+            />
           </g>
 
           <g v-if="showOutlines" class="openings" pointer-events="none">
@@ -554,7 +425,18 @@
                 fill="#666"
                 font-size="9"
               >
-                {{ room.width.toFixed(1) }} × {{ room.height.toFixed(1) }} m
+                {{ room.width.toFixed(1) }} m
+              </text>
+              <text
+                v-if="showRoomDimensions"
+                :x="(room.x + room.width) * scale + 10"
+                :y="(room.y + room.height / 2) * scale"
+                :transform="`rotate(-90 ${(room.x + room.width - room.wallThicknesses.right / 2) * scale - 5} ${(room.y + room.height / 2) * scale})`"
+                text-anchor="middle"
+                fill="#666"
+                font-size="9"
+              >
+                {{ room.height.toFixed(1) }} m
               </text>
             </g>
           </g>
@@ -608,55 +490,20 @@
         </svg>
       </div>
 
-      <div v-if="interactionError" class="interaction-error" role="alert">{{ interactionError }}</div>
+      <Message v-if="interactionError" class="interaction-error" severity="error" role="alert">{{ interactionError }}</Message>
 
-      <div class="canvas-toolbar">
-        <button type="button" class="toolbar-icon active" title="Selecionar">↖</button>
-        <span class="toolbar-divider"></span>
-        <button type="button" class="toolbar-button" @click="emit('add-room')">＋ Cômodo</button>
-        <button type="button" class="toolbar-button" @click="emit('add-furniture')">＋ Móvel</button>
-        <button type="button" class="toolbar-button" @click="emit('add-marking')">＋ Marcação</button>
-        <button type="button" class="toolbar-button" @click="showGuidePanel = !showGuidePanel">⌖ Guias</button>
-        <button type="button" class="toolbar-button" title="Exportar planta como SVG" @click="exportSvg">Exportar SVG</button>
-        <button type="button" class="toolbar-icon" title="Ajustar canvas à área visível" @click="fitCanvas">⛶</button>
-      </div>
+      <PlantCanvasToolbar
+        :show-guide-panel="showGuidePanel"
+        :export-svg="exportSvg"
+        :fit-canvas="fitCanvas"
+        @add-room="emit('add-room')"
+        @add-furniture="emit('add-furniture')"
+        @add-marking="emit('add-marking')"
+        @toggle-guides="showGuidePanel = !showGuidePanel"
+      />
 
-      <div
-        v-if="contextMenu.visible"
-        class="room-context-menu"
-        :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
-        @click.stop
-      >
-        <button type="button" class="context-menu-item" @click="handleContextDuplicate">
-          Duplicar
-        </button>
-        <button type="button" class="context-menu-item" @click="handleContextEdit">
-          Editar
-        </button>
-        <button type="button" class="context-menu-item" @click="handleContextSwapDimensions">
-          Inverter altura x largura
-        </button>
-        <button type="button" class="context-menu-item" :disabled="!plantStore.canMoveObject(contextMenu.room?.id, 1)" @click="handleContextReorder(1)">
-          Enviar para frente
-        </button>
-        <button type="button" class="context-menu-item" :disabled="!plantStore.canMoveObject(contextMenu.room?.id, -1)" @click="handleContextReorder(-1)">
-          Enviar para trás
-        </button>
-        <button type="button" class="context-menu-item context-menu-item-danger" @click="handleContextDelete">
-          Apagar
-        </button>
-      </div>
-
-      <div
-        v-if="imageContextMenu.visible"
-        class="image-context-menu"
-        :style="{ left: `${imageContextMenu.x}px`, top: `${imageContextMenu.y}px` }"
-        @click.stop
-      >
-        <button type="button" class="context-menu-item" @click="handleImageDuplicate">Duplicar</button>
-        <button type="button" class="context-menu-item" @click="handleImageRotate">Girar 90°</button>
-        <button type="button" class="context-menu-item context-menu-item-danger" @click="handleImageDelete">Apagar</button>
-      </div>
+      <ContextMenu ref="roomMenu" :model="roomMenuItems" @hide="contextMenu.room = null" />
+      <ContextMenu ref="imageMenu" :model="imageMenuItems" @hide="imageContextMenu.image = null" />
     </div>
 
 
@@ -665,9 +512,14 @@
 
 <script setup>
 import { ref, computed, onBeforeUnmount, onMounted, nextTick, watch } from 'vue'
+import ContextMenu from 'primevue/contextmenu'
+import Message from 'primevue/message'
 import { usePlantStore } from '../stores/plantStore'
-import { buildWallRectangles, buildWallSnapTargets } from '../walls'
+import { buildWallUnionPathData, buildWallSnapTargets } from '../walls'
 import { getOpeningGeometry } from '../openings'
+import PlantCanvasControls from './PlantCanvasControls.vue'
+import PlantCanvasGuidesPanel from './PlantCanvasGuidesPanel.vue'
+import PlantCanvasToolbar from './PlantCanvasToolbar.vue'
 
 const props = defineProps({
   selectedRoomId: {
@@ -688,7 +540,7 @@ const emit = defineEmits(['edit-room', 'select-element', 'add-room', 'add-furnit
 
 const plantStore = usePlantStore()
 const roomObjects = computed(() => plantStore.orderedObjects.filter(room => room.type === 'room'))
-const wallRectangles = computed(() => buildWallRectangles(roomObjects.value))
+const wallPathData = computed(() => buildWallUnionPathData(roomObjects.value))
 const BASE_SCALE = 38
 const scale = ref(BASE_SCALE)
 const interactionError = ref('')
@@ -704,6 +556,16 @@ const renderedOpenings = computed(() => plantStore.openings.map(opening => {
 }))
 const zoomMenuOpen = ref(false)
 const snapMenuOpen = ref(false)
+const zoomPopover = ref(null)
+const snapPopover = ref(null)
+const roomMenu = ref(null)
+const imageMenu = ref(null)
+watch(zoomMenuOpen, open => {
+  if (!open) zoomPopover.value?.hide()
+})
+watch(snapMenuOpen, open => {
+  if (!open) snapPopover.value?.hide()
+})
 const disableAllSnaps = ref(false)
 const gridSpacing = ref(1)
 const showPixelGrid = ref(false)
@@ -719,6 +581,21 @@ const showOutlines = ref(true)
 const showRoomNames = ref(true)
 const showRoomAreas = ref(true)
 const showRoomDimensions = ref(true)
+const controlRefs = {
+  zoomMenuOpen,
+  snapMenuOpen,
+  zoomPopover,
+  snapPopover,
+  disableAllSnaps,
+  snapOptions,
+  showLayoutGrid,
+  showPixelGrid,
+  showRulers,
+  showOutlines,
+  showRoomNames,
+  showRoomAreas,
+  showRoomDimensions
+}
 const showGuidePanel = ref(false)
 const canvasWrapper = ref(null)
 const draggingRoom = ref(null)
@@ -727,12 +604,29 @@ const dragStartY = ref(0)
 const resizingRoom = ref(null)
 const workspacePan = ref(null)
 const viewportOffset = ref({ x: 0, y: 0 })
-const contextMenu = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  room: null
-})
+const contextMenu = ref({ room: null })
+const roomMenuItems = computed(() => [
+  { label: 'Duplicar', icon: 'pi pi-copy', command: handleContextDuplicate },
+  { label: 'Editar', icon: 'pi pi-pencil', command: handleContextEdit },
+  { label: 'Inverter altura x largura', icon: 'pi pi-arrows-h', command: handleContextSwapDimensions },
+  { label: 'Enviar para frente', icon: 'pi pi-arrow-up', disabled: !plantStore.canMoveObject(contextMenu.value.room?.id, 1), command: () => handleContextReorder(1) },
+  { label: 'Enviar para trás', icon: 'pi pi-arrow-down', disabled: !plantStore.canMoveObject(contextMenu.value.room?.id, -1), command: () => handleContextReorder(-1) },
+  { separator: true },
+  { label: 'Apagar', icon: 'pi pi-trash', command: handleContextDelete }
+])
+const zoomActions = computed(() => [
+  { label: 'Aumentar zoom', icon: 'pi pi-search-plus', shortcut: 'Ctrl++', command: () => changeZoom(10) },
+  { label: 'Diminuir zoom', icon: 'pi pi-search-minus', shortcut: 'Ctrl+-', command: () => changeZoom(-10) },
+  { separator: true },
+  { label: 'Zoom para caber', icon: 'pi pi-expand', shortcut: 'Shift+1', command: fitCanvas },
+  { label: 'Zoom em 50%', icon: 'pi pi-search', command: () => setZoom(50) },
+  { label: 'Zoom em 100%', icon: 'pi pi-search', shortcut: 'Shift+0', command: () => setZoom(100) },
+  { label: 'Zoom em 200%', icon: 'pi pi-search', command: () => setZoom(200) },
+  { label: 'Zoom na seleção', icon: 'pi pi-search', shortcut: 'Shift+2', command: fitSelection },
+  { separator: true },
+  { label: 'Visualização de pixels 1x', icon: pixelView.value === 100 ? 'pi pi-check' : 'pi pi-desktop', command: () => setPixelView(1) },
+  { label: 'Visualização de pixels 2x', icon: pixelView.value === 200 ? 'pi pi-check' : 'pi pi-desktop', command: () => setPixelView(2) }
+])
 
 // after a drop, suppress immediate startDragImage for a short window to avoid accidental drag
 const dropSuppressUntil = ref(0)
@@ -755,14 +649,21 @@ const canvasWidth = computed(() => (plantStore.lot?.width || 10) * scale.value +
 const canvasHeight = computed(() => (plantStore.lot?.height || 15) * scale.value + 60)
 const pixelView = computed(() => Math.round(scale.value / BASE_SCALE * 100))
 
-const updateGridSpacing = (event) => {
-  const value = Number(event.target.value)
+const setGridSpacing = (value) => {
   if (!Number.isFinite(value) || value < 0.01 || Math.abs(value * 100 - Math.round(value * 100)) > 0.000001) {
     alert('O espaçamento do grid deve ser de pelo menos 0,01 m, em incrementos de 0,01 m.')
   } else {
     gridSpacing.value = value
   }
-  event.target.value = String(gridSpacing.value)
+}
+
+const updateGridSpacingValue = (value) => {
+  setGridSpacing(Number(value))
+}
+
+const updateGridSpacing = (event) => {
+  setGridSpacing(Number(event?.target?.value))
+  if (event?.target) event.target.value = String(gridSpacing.value)
 }
 
 const snapToGrid = (value) =>
@@ -1286,32 +1187,13 @@ const openRoomEditor = (room) => {
 }
 
 const openContextMenu = (event, room) => {
-  if (!event.currentTarget) return
-
-  const wrapper = event.currentTarget.closest('.canvas-wrapper')
-  if (!wrapper) return
-
-  const wrapperRect = wrapper.getBoundingClientRect()
-  const menuWidth = 230
-  const menuHeight = 264
-  const padding = 8
-
-  const maxX = wrapperRect.width - menuWidth - padding
-  const maxY = wrapperRect.height - menuHeight - padding
-
-  const nextX = Math.min(Math.max(event.clientX - wrapperRect.left, padding), Math.max(maxX, padding))
-  const nextY = Math.min(Math.max(event.clientY - wrapperRect.top, padding), Math.max(maxY, padding))
-
-  contextMenu.value = {
-    visible: true,
-    x: nextX,
-    y: nextY,
-    room
-  }
+  closeImageContextMenu()
+  contextMenu.value.room = room
+  roomMenu.value.show(event)
 }
 
 const closeContextMenu = () => {
-  contextMenu.value.visible = false
+  roomMenu.value?.hide()
   contextMenu.value.room = null
 }
 
@@ -1421,29 +1303,22 @@ const handleContextSwapDimensions = () => {
 }
 
 // IMAGE context menu support
-const imageContextMenu = ref({ visible: false, x: 0, y: 0, image: null })
+const imageContextMenu = ref({ image: null })
+const imageMenuItems = computed(() => [
+  { label: 'Duplicar', icon: 'pi pi-copy', command: handleImageDuplicate },
+  { label: 'Girar 90°', icon: 'pi pi-refresh', command: handleImageRotate },
+  { separator: true },
+  { label: 'Apagar', icon: 'pi pi-trash', command: handleImageDelete }
+])
 
 const openImageContextMenu = (event, img) => {
-  if (!event.currentTarget) return
-  const wrapper = event.currentTarget.closest('.canvas-wrapper')
-  if (!wrapper) return
-
-  const wrapperRect = wrapper.getBoundingClientRect()
-  const menuWidth = 200
-  const menuHeight = 120
-  const padding = 8
-
-  const maxX = wrapperRect.width - menuWidth - padding
-  const maxY = wrapperRect.height - menuHeight - padding
-
-  const nextX = Math.min(Math.max(event.clientX - wrapperRect.left, padding), Math.max(maxX, padding))
-  const nextY = Math.min(Math.max(event.clientY - wrapperRect.top, padding), Math.max(maxY, padding))
-
-  imageContextMenu.value = { visible: true, x: nextX, y: nextY, image: img }
+  closeContextMenu()
+  imageContextMenu.value.image = img
+  imageMenu.value.show(event)
 }
 
 const closeImageContextMenu = () => {
-  imageContextMenu.value.visible = false
+  imageMenu.value?.hide()
   imageContextMenu.value.image = null
 }
 
@@ -1616,32 +1491,12 @@ const handleDrop = async (event) => {
 }
 
 
-const handleGlobalContextMenuClose = (event) => {
-  const path = typeof event.composedPath === 'function' ? event.composedPath() : []
-  const clickedRoomMenu = path.some((node) => node?.classList?.contains?.('room-context-menu'))
-  const clickedImageMenu = path.some((node) => node?.classList?.contains?.('image-context-menu'))
-  const clickedRoom = path.some((node) => node?.classList?.contains?.('room'))
-  const clickedImage = path.some((node) => node?.classList?.contains?.('placed-image-item'))
-  const clickedControls = path.some((node) => node?.classList?.contains?.('canvas-controls'))
-  if (!clickedControls) snapMenuOpen.value = false
-
-  if (contextMenu.value.visible && !clickedRoomMenu && !clickedRoom) {
-    closeContextMenu()
-  }
-
-  if (imageContextMenu.value.visible && !clickedImageMenu && !clickedImage) {
-    closeImageContextMenu()
-  }
-}
-
-window.addEventListener('mousedown', handleGlobalContextMenuClose)
 window.addEventListener('mousemove', handleWorkspacePan)
 window.addEventListener('mouseup', stopWorkspacePan)
 window.addEventListener('resize', closeContextMenu)
 window.addEventListener('keydown', handleZoomShortcut)
 
 onBeforeUnmount(() => {
-  window.removeEventListener('mousedown', handleGlobalContextMenuClose)
   window.removeEventListener('mousemove', handleWorkspacePan)
   window.removeEventListener('mouseup', stopWorkspacePan)
   window.removeEventListener('resize', closeContextMenu)
@@ -1829,6 +1684,11 @@ const updateGuide = (type, index, value) => {
   }
 }
 
+const updateGuideValue = (type, index, value) => {
+  if (!Number.isFinite(value)) return
+  updateGuide(type, index, value)
+}
+
 const removeGuide = (type, value) => {
   plantStore.removeGuide(type, value)
 }
@@ -1842,11 +1702,6 @@ const removeGuide = (type, value) => {
   bottom: 76px;
   z-index: 20;
   max-width: calc(100% - 32px);
-  padding: 10px 14px;
-  border: 1px solid #b91c1c;
-  border-radius: 6px;
-  background: #fff1f2;
-  color: #b91c1c;
   pointer-events: none;
 }
 .plant-canvas-container {
@@ -1964,144 +1819,9 @@ const removeGuide = (type, value) => {
 
 
 
-.canvas-controls,.guides-controls {
-  position: absolute;
-  z-index: 20;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 12px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(2px);
-
-  button {
-    padding: 7px 10px;
-    font-size: 0.8em;
-    line-height: 1;
-    background: #f3f4f6;
-    color: #111827;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-    font-weight: 500;
-    box-shadow: none;
-
-    &:hover {
-      background: #e5e7eb;
-      border-color: #9ca3af;
-      transform: translateY(-1px);
-      box-shadow: none;
-    }
-  }
-
-  .zoom-level {
-    margin-left: 4px;
-    font-size: 0.82em;
-    font-weight: 700;
-    color: #374151;
-    letter-spacing: 0.02em;
-  }
-}
-
-
-.canvas-controls{
-  top: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.guides-controls {
-  top: 60px;
-  right: 12px;
-  .guides-column {
-    flex: 1;
-
-    h4 {
-      margin: 0 0 8px;
-      font-size: 0.95em;
-    }
-    padding-bottom: 12px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid #ececec;
-  }
-}
-
-.room-context-menu, .image-context-menu {
-  position: absolute;
-  z-index: 40;
-  width: 230px;
-  background: #fff;
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-}
-
-.context-menu-item {
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  padding: 10px 14px;
-  color: #222;
-  font-size: 0.95em;
-  cursor: pointer;
-
-  &:hover {
-    background: #f3f6fb;
-  }
-
-  + .context-menu-item {
-    border-top: 1px solid #ececec;
-  }
-}
-
-.context-menu-item-danger {
-  color: #b42318;
-
-  &:hover {
-    background: #fff2f0;
-  }
-}
-
 @media (max-width: 768px) {
   .canvas-wrapper {
     min-height: 260px;
-  }
-
-  .canvas-controls {
-    flex-wrap: wrap;
-  }
-}
-
-
-.guide-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 6px;
-
-  input[type='number'] {
-    width: 110px;
-    padding: 6px 8px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-  }
-
-  button {
-    padding: 6px 8px;
-    background: #ff5252;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .muted {
-    color: #777;
   }
 }
 
@@ -2138,199 +1858,7 @@ const removeGuide = (type, value) => {
   opacity: 1;
 }
 
-.canvas-controls {
-  top: 14px;
-  right: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.zoom-menu-trigger {
-  min-width: 82px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 0 11px;
-  border: 1px solid #d7dbe0;
-  border-radius: 6px;
-  background: #fff;
-  color: #333840;
-  font-size: 12px;
-}
-
-.zoom-menu-trigger:hover,
-.canvas-toolbar button:hover {
-  transform: none;
-  box-shadow: none;
-}
-
-.zoom-menu {
-  position: absolute;
-  top: 40px;
-  right: 0;
-  z-index: 35;
-  width: 270px;
-  max-height: min(72vh, 600px);
-  overflow-y: auto;
-  padding: 6px;
-  border: 1px solid #e1e4e8;
-  border-radius: 9px;
-  background: #fff;
-  box-shadow: 0 8px 26px rgba(20, 27, 38, 0.16);
-}
-
-.grid-spacing-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px;
-  color: #30343a;
-  font-size: 12px;
-
-  input {
-    width: 78px;
-    padding: 6px;
-    border: 1px solid #d7dbe0;
-    border-radius: 4px;
-  }
-}
-
-.zoom-menu-item,
-.zoom-menu-toggle {
-  width: 100%;
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 9px;
-  border: 0;
-  border-radius: 4px;
-  background: #fff;
-  color: #30343a;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.zoom-menu-item:hover,
-.zoom-menu-toggle:hover {
-  background: #f1f5f9;
-  transform: none;
-  box-shadow: none;
-}
-
-.zoom-menu-toggle {
-  cursor: pointer;
-}
-
-.zoom-menu-toggle input {
-  width: 13px;
-  height: 13px;
-  margin: 0 7px 0 0;
-  accent-color: #1687f8;
-}
-
-.zoom-menu-toggle kbd {
-  margin-left: auto;
-}
-
-.zoom-menu-item kbd,
-.zoom-menu-toggle kbd {
-  color: #858b94;
-  font-family: inherit;
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-.zoom-menu-divider {
-  height: 1px;
-  margin: 5px 3px;
-  background: #e8eaed;
-}
-
-.canvas-toolbar {
-  position: absolute;
-  z-index: 15;
-  bottom: 16px;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  max-width: calc(100% - 32px);
-  overflow-x: auto;
-  padding: 7px;
-  border: 1px solid #e0e3e7;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 4px 16px rgba(25, 32, 43, 0.12);
-  transform: translateX(-50%);
-}
-
-.canvas-toolbar button {
-  min-width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #454b54;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.canvas-toolbar .toolbar-icon {
-  font-size: 18px;
-}
-
-.canvas-toolbar .active {
-  background: #1687f8;
-  color: #fff;
-}
-
-.canvas-toolbar .toolbar-button:hover,
-.canvas-toolbar .toolbar-icon:hover {
-  background: #eef4fb;
-}
-
-.canvas-toolbar .active:hover {
-  background: #0877e7;
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 22px;
-  margin: 0 3px;
-  background: #e1e4e8;
-}
-
-.guides-controls {
-  top: 58px;
-  right: 18px;
-  width: 275px;
-  max-height: calc(100% - 125px);
-  overflow: auto;
-  background: rgba(255, 255, 255, 0.97);
-}
-
-@media (max-width: 768px) {
-  .canvas-toolbar {
-    bottom: 9px;
-  }
-
-  .zoom-menu {
-    width: min(270px, calc(100vw - 24px));
-  }
+.canvas-wrapper {
+  background: var(--p-content-hover-background);
 }
 </style>

@@ -12,17 +12,20 @@ Um aplicativo web interativo desenvolvido com Vue.js 3 para criar e organizar pl
 - **Arrastar Cômodos**: Mova os cômodos diretamente no canvas
 - **Visualização em Tempo Real**: Veja a planta atualizada conforme você trabalha
 - **Paleta de Cores**: Cada cômodo possui uma cor única para melhor visualização
-- **Cálculo de Áreas**: Apenas cômodos exibem área no desenho e podem entrar no total de área construída, conforme a opção “Incluir na área construída”.
-- **Painel de propriedades contextual**: Edite dimensões reais, preenchimento, opacidade e traço do terreno ou do cômodo selecionado
+- **Cálculo de Áreas**: Apenas cômodos exibem área no desenho e podem entrar no total de área construída, conforme a opção “Incluir na área construída”. O total considera a união dos retângulos: sobreposições são contadas apenas uma vez e vazios internos não entram no cálculo. As áreas individuais continuam sendo largura × altura, sem acréscimo da espessura das paredes.
+- **Resumo flutuante**: Área do terreno, quantidade de cômodos e área construída no canto superior esquerdo da área de trabalho, com fundo transparente e sem bloquear a interação com a planta.
+- **Painel de propriedades contextual**: Abas compactas, sem caixas aninhadas: **Layout** reúne identificação, dimensões, área e ordem de desenho; **Aparência** reúne preenchimento, opacidade e paredes ou traço; **Aberturas**, exclusiva de cômodos, reúne portas e janelas.
 - **Zoom e navegação**: Use o menu de zoom, a roda do mouse e o arraste com o botão central
 - **Guias de alinhamento**: Crie, edite e remova guias verticais e horizontais no canvas
 - **Biblioteca de imagens**: Insira imagens disponíveis na paleta por clique ou arrastando-as para a planta
 - **Exportação SVG**: Baixe uma versão vetorial da planta, incluindo as imagens posicionadas e sem os controles de seleção
 - **Salvar e abrir projetos**: Exporte o projeto editável em JSON e importe-o novamente pela barra superior
-- **Paredes físicas**: Retângulos centralizados nas arestas dos cômodos, com espessura inicial de 15 cm, editável por lado e proporcional ao zoom. Cantos e trechos compartilhados são unidos visualmente, sem linhas internas.
+- **Interface minimalista**: Ações em botões de ícones, com descrição ao passar o mouse (`title`) e nome acessível. Menus contextuais, seletores e painéis usam PrimeVue.
+- **Tema claro e escuro**: O botão de sol/lua na barra superior indica o tema atual e alterna para o outro tema. A preferência é mantida entre visitas.
+- **Paredes físicas**: Segmentos centralizados nas arestas dos cômodos, com espessura inicial de 15 cm, editável por lado e proporcional ao zoom. O contorno exibido no SVG é unificado por geometria booleana (ClipperJS), removendo emendas internas sem perder as espessuras reais.
 - **Cores globais das paredes**: Preenchimento cinza (`#808080`) e borda escura (`#222222`), configuráveis para todo o projeto. O contorno fino permanece com 1 px na tela.
 - **Espessura por aresta**: Cômodos usam centímetros; terreno, móveis e marcações mantêm seus traços em pixels.
-- **Portas e janelas**: Aberturas vinculadas aos lados dos cômodos, com largura e posição em metros. Janelas são retângulos sobre as paredes; portas também exibem folha e arco de abertura de 90°, com dobradiça e sentido configuráveis.
+- **Portas e janelas**: Aberturas vinculadas aos lados dos cômodos, com largura e posição em metros. Janelas são retângulos sobre as paredes; portas também exibem folha e arco de abertura de 90°, com dobradiça e sentido configuráveis. O modelo mantém metadados semânticos de abertura (peitoril, topo e modo de profundidade) para exportação 3D futura.
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -30,6 +33,7 @@ Um aplicativo web interativo desenvolvido com Vue.js 3 para criar e organizar pl
 - **Vite** - Build tool rápido e moderno
 - **Pinia** - Gerenciamento de estado
 - **SVG** - Gráficos vetoriais para a visualização da planta
+- **ClipperJS (`clipper-lib`)** - União de polígonos das paredes para renderização de contorno limpo e cálculo da área construída sem duplicar sobreposições
 
 ## 📋 Requisitos
 
@@ -88,7 +92,7 @@ npm run dev
 - A área de cada cômodo é calculada e exibida sobre o retângulo no canvas.
 
 7. Zoom e visualização
-- Clique no percentual no topo do canvas para abrir as opções de zoom, ajuste à área visível ou à seleção e opções de grade/réguas/contornos.
+- Clique na lupa no topo do canvas para abrir as opções de zoom, ajuste à área visível ou à seleção e opções de grade/réguas/contornos. O percentual atual aparece na descrição do botão.
 - A roda do mouse sobre o canvas aproxima ou afasta a visualização; arraste com o botão central para mover o canvas.
 - O percentual representa o zoom em relação à escala base, sem alterar as dimensões reais armazenadas em metros.
 

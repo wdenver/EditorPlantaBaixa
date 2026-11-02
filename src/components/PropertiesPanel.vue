@@ -1,146 +1,181 @@
 <template>
-  <aside class="properties-panel">
-    <header class="properties-heading">
-      <div class="selection-indicator" :style="{ backgroundColor: item.color }"></div>
-      <div>
-        <p class="eyebrow">PROPRIEDADES</p>
-        <h2>{{ isObject ? item.name || 'Marcação sem nome' : 'Terreno' }}</h2>
+  <Panel class="properties-panel">
+    <template #header>
+      <div class="properties-heading">
+        <Avatar shape="square" :style="{ backgroundColor: item.color }" />
+        <div>
+          <small>PROPRIEDADES</small>
+          <h2>{{ isObject ? item.name || 'Marcação sem nome' : 'Terreno' }}</h2>
+        </div>
       </div>
-    </header>
+    </template>
 
-    <section class="property-section">
-      <h3>Layout</h3>
-      <template v-if="isObject">
-        <label class="property-label" for="selected-object-type">Tipo</label>
-        <select id="selected-object-type" :value="item.type" @change="update('type', $event.target.value)">
-          <option v-for="option in OBJECT_TYPES" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-        <label class="property-field">
-          <span>Nome{{ item.type === 'marking' ? ' (opcional)' : '' }}</span>
-          <input type="text" :value="item.name" @change="update('name', $event.target.value)" />
-        </label>
-      </template>
-      <label class="property-label">{{ isObject ? 'Dimensões do objeto' : 'Dimensões do terreno' }}</label>
-      <div class="dimension-fields">
-        <label class="property-field">
-          <span>Largura (m)</span>
-          <input
-            type="number"
-            min="0.1"
-            step="0.1"
-            :value="item.width"
-            @change="updateNumber('width', $event)"
-          />
-        </label>
-        <label class="property-field">
-          <span>Comprimento (m)</span>
-          <input
-            type="number"
-            min="0.1"
-            step="0.1"
-            :value="item.height"
-            @change="updateNumber('height', $event)"
-          />
-        </label>
-      </div>
-    </section>
+    <Tabs v-model:value="activeTab" class="properties-tabs">
+      <TabList :pt="{ tabList: { 'aria-label': 'Grupos de propriedades' } }">
+        <Tab value="layout">Layout</Tab>
+        <Tab value="appearance">Aparência</Tab>
+        <Tab v-if="isRoom" value="openings">Aberturas</Tab>
+      </TabList>
+      <TabPanels>
+        <TabPanel value="layout">
+          <section class="property-section" aria-label="Dimensões e identificação">
+            <template v-if="isObject">
+              <label class="field">
+                <span>Tipo</span>
+                <Select
+                  :modelValue="item.type"
+                  :options="typeOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  @update:modelValue="update('type', $event)"
+                />
+              </label>
+              <label class="field">
+                <span>Nome{{ item.type === 'marking' ? ' (opcional)' : '' }}</span>
+                <InputText :modelValue="item.name" @update:modelValue="update('name', $event)" />
+              </label>
+            </template>
+            <div class="field-grid">
+              <label class="field">
+                <span>Largura (m)</span>
+                <InputNumber
+                  :modelValue="item.width"
+                  :min="0.1"
+                  :step="0.1"
+                  @update:modelValue="updateNumber('width', $event)"
+                />
+              </label>
+              <label class="field">
+                <span>Comprimento (m)</span>
+                <InputNumber
+                  :modelValue="item.height"
+                  :min="0.1"
+                  :step="0.1"
+                  @update:modelValue="updateNumber('height', $event)"
+                />
+              </label>
+            </div>
+          </section>
 
-    <section class="property-section">
-      <h3>Aparência</h3>
-      <label class="property-label" for="fill-color">Preenchimento</label>
-      <div class="color-field">
-        <input
-          id="fill-color"
-          type="color"
-          :value="item.color"
-          aria-label="Cor do preenchimento"
-          @input="update('color', $event.target.value)"
-        />
-        <span>{{ item.color.toUpperCase() }}</span>
-      </div>
-      <label class="property-field range-field">
-        <span>Opacidade <strong>{{ Math.round(item.fillOpacity * 100) }}%</strong></span>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          :value="item.fillOpacity"
-          @input="update('fillOpacity', Number($event.target.value))"
-        />
-      </label>
-    </section>
+          <section v-if="isRoom" class="property-section" aria-label="Área">
+            <div class="summary-line">
+              <span>Área do cômodo</span>
+              <strong>{{ (item.width * item.height).toFixed(2) }} m²</strong>
+            </div>
+            <label class="checkbox-field">
+              <Checkbox :modelValue="item.includeInBuiltArea" binary @update:modelValue="update('includeInBuiltArea', $event)" />
+              <span>Incluir na área construída</span>
+            </label>
+          </section>
 
-    <section class="property-section">
-      <h3>{{ isRoom ? 'Paredes' : 'Traço' }}</h3>
-      <p v-if="isRoom" class="layer-hint">Cores nas configurações globais de paredes. Espessuras centralizadas nas arestas.</p>
-      <label v-if="!isRoom" class="property-label" for="stroke-color">Cor compartilhada</label>
-      <div v-if="!isRoom" class="color-field">
-        <input
-          id="stroke-color"
-          type="color"
-          :value="item.strokeColor"
-          aria-label="Cor do traço"
-          @input="update('strokeColor', $event.target.value)"
-        />
-        <span>{{ item.strokeColor.toUpperCase() }}</span>
-      </div>
-      <label class="property-label edge-heading">Espessura por aresta</label>
-      <div class="edge-fields">
-        <label v-for="edge in edges" :key="edge.key" class="property-field">
-          <span>{{ edge.label }}</span>
-          <div class="number-with-unit">
-            <input
-              type="number"
-              min="0"
-              :max="isRoom ? undefined : 30"
-              :step="isRoom ? 1 : 0.5"
-              :value="isRoom ? Number((item.wallThicknesses[edge.key] * 100).toFixed(6)) : item.edgeWidths[edge.key]"
-              @change="updateEdgeWidth(edge.key, $event)"
-            />
-            <span>{{ isRoom ? 'cm' : 'px' }}</span>
-          </div>
-        </label>
-      </div>
-    </section>
+          <section v-if="isObject" class="property-section" aria-label="Ordem de desenho">
+            <h3>Ordem de desenho</h3>
+            <div class="actions-row">
+              <Button type="button" title="Enviar para frente" aria-label="Enviar para frente" icon="pi pi-arrow-up" size="small" :disabled="!canMoveForward" @click="emit('reorder', 1)" />
+              <Button type="button" title="Enviar para trás" aria-label="Enviar para trás" icon="pi pi-arrow-down" size="small" :disabled="!canMoveBackward" @click="emit('reorder', -1)" />
+            </div>
+            <small>Cômodos abaixo de móveis; marcações acima de móveis. Cada clique move uma posição no mesmo tipo.</small>
+          </section>
+        </TabPanel>
 
-    <section v-if="isObject" class="property-section">
-      <h3>Ordem de desenho</h3>
-      <div class="layer-actions">
-        <button type="button" :disabled="!canMoveForward" @click="emit('reorder', 1)">Enviar para frente</button>
-        <button type="button" :disabled="!canMoveBackward" @click="emit('reorder', -1)">Enviar para trás</button>
-      </div>
-      <p class="layer-hint">Cômodos abaixo de móveis; marcações acima de móveis. Cada clique move uma posição no mesmo tipo.</p>
-    </section>
-    <section v-if="isObject && item.type === 'room'" class="property-section">
-      <h3>Portas e janelas</h3>
-      <div class="layer-actions">
-        <button type="button" @click="emit('add-opening', 'window')">Adicionar janela</button>
-        <button type="button" @click="emit('add-opening', 'door')">Adicionar porta</button>
-      </div>
-      <ul class="opening-list">
-        <li v-for="opening in openings" :key="opening.id">
-          <button type="button" @click="emit('select-opening', opening.id)">
-            {{ opening.type === 'door' ? 'Porta' : 'Janela' }} — {{ OPENING_SIDES.find(side => side.value === opening.side).label }} — {{ opening.width }} m
-          </button>
-        </li>
-      </ul>
-    </section>
-    <section v-if="isObject && item.type === 'room'" class="property-section">
-      <div class="property-summary">
-        <span>Área do cômodo</span>
-        <strong>{{ (item.width * item.height).toFixed(2) }} m²</strong>
-      </div>
-      <label>
-        <input type="checkbox" :checked="item.includeInBuiltArea" @change="update('includeInBuiltArea', $event.target.checked)" />
-        Incluir na área construída
-      </label>
-    </section>
-  </aside>
+        <TabPanel value="appearance">
+          <section class="property-section" aria-label="Preenchimento">
+            <label class="field">
+              <span>Preenchimento</span>
+              <div class="color-field">
+                <ColorPicker
+                  inputId="fill-color"
+                  aria-label="Cor do preenchimento"
+                  :model-value="item.color.slice(1)"
+                  format="hex"
+                  @update:model-value="updateColor('color', $event)"
+                />
+                <small>{{ item.color.toUpperCase() }}</small>
+              </div>
+            </label>
+            <label class="field">
+              <span>Opacidade ({{ Math.round(item.fillOpacity * 100) }}%)</span>
+              <Slider :modelValue="item.fillOpacity" :min="0" :max="1" :step="0.01" @update:modelValue="update('fillOpacity', $event)" />
+            </label>
+          </section>
+
+          <section class="property-section" :aria-label="isRoom ? 'Paredes' : 'Traço'">
+            <h3>{{ isRoom ? 'Paredes' : 'Traço' }}</h3>
+            <small v-if="isRoom">Cores nas configurações globais de paredes. Espessuras centralizadas nas arestas.</small>
+            <label v-if="!isRoom" class="field">
+              <span>Cor compartilhada</span>
+              <div class="color-field">
+                <ColorPicker
+                  inputId="stroke-color"
+                  aria-label="Cor do traço"
+                  :model-value="item.strokeColor.slice(1)"
+                  format="hex"
+                  @update:model-value="updateColor('strokeColor', $event)"
+                />
+                <small>{{ item.strokeColor.toUpperCase() }}</small>
+              </div>
+            </label>
+
+            <div class="field-grid">
+              <label v-for="edge in edges" :key="edge.key" class="field">
+                <span>{{ edge.label }} ({{ isRoom ? 'cm' : 'px' }})</span>
+                <InputNumber
+                  :modelValue="isRoom ? Number((item.wallThicknesses[edge.key] * 100).toFixed(6)) : item.edgeWidths[edge.key]"
+                  :min="0"
+                  :max="isRoom ? undefined : 30"
+                  :step="isRoom ? 1 : 0.5"
+                  @update:modelValue="updateEdgeWidth(edge.key, $event)"
+                />
+              </label>
+            </div>
+          </section>
+        </TabPanel>
+
+        <TabPanel v-if="isRoom" value="openings">
+          <section class="property-section" aria-label="Portas e janelas">
+            <h3>Portas e janelas</h3>
+            <div class="actions-row">
+              <Button type="button" title="Adicionar janela" aria-label="Adicionar janela" icon="pi pi-window-maximize" size="small" outlined @click="emit('add-opening', 'window')" />
+              <Button type="button" title="Adicionar porta" aria-label="Adicionar porta" icon="pi pi-sign-in" size="small" outlined @click="emit('add-opening', 'door')" />
+            </div>
+            <div class="opening-list">
+              <Button
+                v-for="opening in openings"
+                :key="opening.id"
+                type="button"
+                class="opening-button"
+                text
+                size="small"
+                :icon="opening.type === 'door' ? 'pi pi-sign-in' : 'pi pi-window-maximize'"
+                :title="openingLabel(opening)"
+                :aria-label="openingLabel(opening)"
+                @click="emit('select-opening', opening.id)"
+              />
+            </div>
+            <small v-if="!openings.length">Nenhuma porta ou janela neste cômodo.</small>
+          </section>
+        </TabPanel>
+      </TabPanels>
+    </Tabs>
+  </Panel>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import Avatar from 'primevue/avatar'
+import Panel from 'primevue/panel'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
+import TabPanel from 'primevue/tabpanel'
+import Select from 'primevue/select'
+import InputText from 'primevue/inputtext'
+import InputNumber from 'primevue/inputnumber'
+import Slider from 'primevue/slider'
+import ColorPicker from 'primevue/colorpicker'
+import Checkbox from 'primevue/checkbox'
+import Button from 'primevue/button'
 import { OBJECT_TYPES } from '../objectTypes'
 import { OPENING_SIDES } from '../openings'
 
@@ -160,6 +195,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'reorder', 'add-opening', 'select-opening'])
 const isRoom = computed(() => props.isObject && props.item.type === 'room')
+const activeTab = ref('layout')
+watch(isRoom, room => {
+  if (!room && activeTab.value === 'openings') activeTab.value = 'layout'
+})
+const typeOptions = OBJECT_TYPES
+const openingLabel = opening => `${opening.type === 'door' ? 'Porta' : 'Janela'} — ${OPENING_SIDES.find(side => side.value === opening.side).label} — ${opening.width} m`
 
 const edges = [
   { key: 'top', label: 'Superior' },
@@ -169,20 +210,17 @@ const edges = [
 ]
 
 const update = (field, value) => emit('update', { field, value })
+const updateColor = (field, color) => update(field, color.startsWith('#') ? color : `#${color}`)
 
-const updateNumber = (field, event) => {
-  const number = Number(event.target.value)
-  if (Number.isFinite(number) && number > 0) update(field, number)
-  event.target.value = String(props.item[field])
+const updateNumber = (field, value) => {
+  if (Number.isFinite(value) && value > 0) update(field, value)
 }
 
-const updateEdgeWidth = (edge, event) => {
-  const value = event.target.value
+const updateEdgeWidth = (edge, value) => {
   const number = Number(value)
   if (isRoom.value) {
-    if (value === '' || !Number.isFinite(number) || number < 0) {
+    if (!Number.isFinite(number) || number < 0) {
       alert('A espessura da parede deve ser um número maior ou igual a zero, em centímetros.')
-      event.target.value = String(Number((props.item.wallThicknesses[edge] * 100).toFixed(6)))
       return
     }
     update('wallThicknesses', {
@@ -199,198 +237,152 @@ const updateEdgeWidth = (edge, event) => {
 </script>
 
 <style scoped>
-.opening-list { padding-left: 18px; margin-top: 12px; }
-.opening-list button {
-  border: 0;
-  background: none;
-  color: #1769aa;
-  text-align: left;
-  cursor: pointer;
-  padding: 6px 0;
-}
-select,
-.property-field input[type='text'] {
-  width: 100%;
-  margin-bottom: 12px;
-  padding: 8px;
-  border: 1px solid #d9dde2;
-  border-radius: 5px;
-}
-
-.layer-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.layer-actions button {
-  padding: 8px;
-  border: 1px solid #d9dde2;
-  border-radius: 5px;
-  background: #f7f8f9;
-  cursor: pointer;
-}
-
-.layer-actions button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.layer-hint {
-  margin-top: 10px;
-  color: #646a73;
-  font-size: 11px;
-}
-
 .properties-panel {
   height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  border-left: 1px solid var(--p-content-border-color);
+}
+
+.properties-panel :deep(.p-panel-content-container) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.properties-panel :deep(.p-panel-content) {
+  height: 100%;
+  padding: 0 0.875rem 0.875rem;
   overflow-y: auto;
-  background: #fff;
-  color: #202124;
-  border-left: 1px solid #e4e6e9;
+}
+
+.properties-panel :deep(.p-panel-header) {
+  padding: 0.875rem;
+  border-bottom: 1px solid var(--p-content-border-color);
 }
 
 .properties-heading {
-  min-height: 72px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid #e8eaed;
-}
-
-.selection-indicator {
-  width: 28px;
-  height: 28px;
-  border: 1px solid #d0d4d9;
-  border-radius: 6px;
-}
-
-.eyebrow {
-  margin: 0 0 3px;
-  color: #777d86;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.properties-heading h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.property-section {
-  padding: 16px;
-  border-bottom: 1px solid #e8eaed;
-}
-
-.property-section h3 {
-  margin: 0 0 14px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.property-label,
-.property-field > span:first-child {
-  display: block;
-  margin-bottom: 7px;
-  color: #646a73;
-  font-size: 11px;
-}
-
-.dimension-fields,
-.edge-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.property-field {
+  gap: 0.75rem;
   min-width: 0;
 }
 
-.property-field input[type='number'] {
-  width: 100%;
-  height: 34px;
-  padding: 0 9px;
-  border: 1px solid #d9dde2;
-  border-radius: 5px;
-  background: #f7f8f9;
-  color: #25282c;
-  font-size: 12px;
+.properties-heading > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.property-field input:focus {
-  outline: 2px solid #1687f8;
-  outline-offset: 1px;
+.properties-tabs {
+  min-width: 0;
+}
+
+.properties-tabs :deep(.p-tab) {
+  flex: 1;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.properties-tabs :deep(.p-tabpanels) {
+  padding: 0.875rem 0 0;
+}
+
+.properties-tabs :deep(.p-tabpanel) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.property-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.property-section + .property-section {
+  padding-top: 1rem;
+  border-top: 1px solid var(--p-content-border-color);
+}
+
+.property-section h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.property-section > small {
+  color: var(--p-text-muted-color);
+}
+
+.field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.field-grid > * {
+  min-width: 0;
+}
+
+.field :deep(.p-inputtext),
+.field :deep(.p-select),
+.field :deep(.p-inputnumber),
+.field :deep(.p-slider) {
+  width: 100%;
+}
+
+.field :deep(.p-inputnumber-input) {
+  width: 100%;
 }
 
 .color-field {
-  height: 36px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 4px 9px;
-  border: 1px solid #d9dde2;
-  border-radius: 5px;
-  background: #f7f8f9;
-  font-size: 11px;
+  gap: 0.6rem;
 }
 
-.color-field input[type='color'] {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
+.actions-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.range-field {
-  display: block;
-  margin-top: 16px;
+.opening-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-start;
 }
 
-.range-field > span:first-child {
+.summary-line {
   display: flex;
   justify-content: space-between;
 }
 
-.range-field strong {
-  color: #34383e;
-}
-
-.range-field input {
-  width: 100%;
-  accent-color: #1687f8;
-}
-
-.edge-heading {
-  margin-top: 18px;
-}
-
-.number-with-unit {
-  display: flex;
+.checkbox-field {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: #777d86;
-  font-size: 11px;
-}
-
-.property-summary {
-  display: flex;
-  justify-content: space-between;
-  color: #646a73;
-  font-size: 12px;
-}
-
-.property-summary strong {
-  color: #202124;
+  gap: 0.5rem;
 }
 
 @media (max-width: 900px) {
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
   .properties-panel {
-    border-top: 1px solid #e4e6e9;
+    border-top: 1px solid var(--p-content-border-color);
     border-left: 0;
   }
 }

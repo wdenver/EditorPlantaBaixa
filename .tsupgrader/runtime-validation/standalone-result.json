@@ -1,0 +1,139 @@
+{
+  "planHash": "e5a8b11b01dde1ab8b517b510244228e664bdb09444559499caf72ffbb5cca4f",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-10-30T12:20:55.9189800Z",
+  "retryCount": 1,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "production-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "npm warn Unknown env config \u0022scripts-prepend-node-path\u0022. This will stop working in the next major version of npm. See \u0060npm help npmrc\u0060 for supported config options.\n\n\u003E editor-planta@1.0.0 build\n\u003E vite build\n\nvite v4.5.14 building for production...\ntransforming...\nDEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/legacy-js-api\n\n\u2713 246 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                               0.43 kB \u2502 gzip:   0.30 kB\ndist/assets/primeicons-9eea6e0b.woff2        35.15 kB\ndist/assets/primeicons-dc895fee.ttf          84.98 kB\ndist/assets/primeicons-f5d1d219.woff         85.06 kB\ndist/assets/primeicons-987f23ea.eot          85.16 kB\ndist/assets/bootstrap-icons-2b768974.woff2  134.01 kB\ndist/assets/bootstrap-icons-24929e8a.woff   180.29 kB\ndist/assets/primeicons-36c54cec.svg         342.53 kB \u2502 gzip: 105.26 kB\ndist/assets/index-9a8da546.css               99.25 kB \u2502 gzip:  18.97 kB\ndist/assets/index-3fc15f7a.js               670.37 kB \u2502 gzip: 161.57 kB\n\n(!) Some chunks are larger than 500 kBs after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n\u2713 built in 2.59s\n",
+        "durationMs": 3051
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "npm warn Unknown env config \u0022scripts-prepend-node-path\u0022. This will stop working in the next major version of npm. See \u0060npm help npmrc\u0060 for supported config options.\n\n\u003E editor-planta@1.0.0 test\n\u003E node --test tests/*.test.js\n\n\u2714 PlantEditor actions are icon-only with matching titles and accessible names (59.2332ms)\n\u2714 PlantCanvas actions are icon-only with matching titles and accessible names (50.68323ms)\n\u2714 PropertiesPanel actions are icon-only with matching titles and accessible names (12.610543ms)\n\u2714 RoomForm actions are icon-only with matching titles and accessible names (4.501636ms)\n\u2714 OpeningForm actions are icon-only with matching titles and accessible names (2.596621ms)\n\u2714 SvgPalette actions are icon-only with matching titles and accessible names (1.520735ms)\n\u2714 only included rooms contribute to built area (30.818935ms)\n\u2714 furniture defaults are gray and thinner; markings allow empty names (2.089692ms)\n\u2714 drawing order groups types and moves exactly one same-type position (3.002901ms)\n\u2714 appearance survives partial edits, duplication and type changes (2.213011ms)\n\u2714 legacy projects load as rooms; export/import preserves type, style and order (6.215062ms)\n\u2714 local storage persists ordering and types on reload (2.364129ms)\n\u2714 openings align to all four wall axes and inherit the rendered thickness (3.573321ms)\n\u2714 door leaf and quarter-circle follow hinge and swing on every side (1.225361ms)\n\u2714 invalid references, dimensions, missing walls and overlapping physical intervals fail (1.893004ms)\n\u2714 CRUD, room changes, duplication and persistence preserve opening integrity (44.409946ms)\n\u2714 openings restore from local storage and clear on new projects (2.78824ms)\n\u2714 type conversion removes openings only with explicit consent and invalid imports are atomic (3.554177ms)\n\u2714 resize previews reject invalid opening geometry without mutating the room (38.82482ms)\n\u2714 moving a room cannot overlap openings on a neighboring wall (3.484074ms)\n\u2714 grid spacing accepts meters and rejects invalid values visibly (1.837385ms)\n\u2714 grid snap uses configured spacing independently of visibility (1.857121ms)\n\u2714 object edges can be disabled independently and take priority over grid (3.731742ms)\n\u2714 vertical and horizontal guide snaps toggle separately (1.996647ms)\n\u2714 resizing snaps the moving edge with fractional spacing on all four sides (1.832887ms)\n\u2714 furniture snaps both edges to inner and outer wall faces, not room axes (2.563512ms)\n\u2714 furniture respects active wall sides, thickness and shared wall segments (2.462062ms)\n\u2714 furniture resizing aligns all four moving edges to physical wall faces (2.342741ms)\n\u2714 room and marking snaps keep geometric edges; furniture keeps snapping to other object edges (2.250147ms)\n\u2714 disable all snaps overrides every option without losing individual preferences (1.891662ms)\n\u2714 mouse movement and resizing preserve half-centimeter wall faces and honor the master switch (2.641961ms)\n\u2714 canvas renders room fills and controls before furniture, with labels above the drawing (47.441607ms)\n\u2714 openings cover walls below objects, with door symbols and separate topmost selection controls (12.250576ms)\n\u2714 legacy projects migrate all room wall widths to 15 cm without altering non-room strokes (32.881139ms)\n\u2714 global colors and per-side thickness survive export, import, edits and duplication (3.389916ms)\n\u2714 global colors and thickness persist in local storage and are restored on reload (2.945609ms)\n\u2714 invalid wall input fails explicitly and import preserves the current project on failure (3.143219ms)\n\u2714 four centered rectangles meet at corners with a default thickness of 15 cm (2.423053ms)\n\u2714 per-side thickness extends adjoining rectangles to close uneven corners (0.670808ms)\n\u2714 full shared walls are drawn once using the greater thickness without mutating rooms (3.309904ms)\n\u2714 partial shared walls use the maximum thickness only along the common interval (0.662995ms)\n\u2714 T junctions and four-way intersections close without moving room axes (0.686086ms)\n\u2714 one active neighbor keeps the shared wall; disabling both or zero thickness removes it (0.540648ms)\n\u2714 nearby walls are \n\u2026[truncated]",
+        "durationMs": 812,
+        "testResults": {
+          "testFramework": "unknown",
+          "runnerDetectedFrom": "none",
+          "testsTotal": 0,
+          "testsPassed": 0,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": true
+        }
+      },
+      {
+        "name": "dev-server-serves-home",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!DOCTYPE html\u003E\n\u003Chtml lang=\u0022pt-BR\u0022\u003E\n\u003Chead\u003E\n  \u003Cscript type=\u0022module\u0022 src=\u0022/@vite/client\u0022\u003E\u003C/script\u003E\n\n  \u003Cmeta charset=\u0022UTF-8\u0022 /\u003E\n  \u003Clink rel=\u0022icon\u0022 href=\u0022/favicon.ico\u0022 /\u003E\n  \u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1.0\u0022 /\u003E\n  \u003Ctitle\u003EEditor de Plantas de Casa\u003C/title\u003E\n\u003C/head\u003E\n\u003Cbody\u003E\n  \u003Cdiv id=\u0022app\u0022\u003E\u003C/div\u003E\n  \u003Cscript type=\u0022module\u0022 src=\u0022/src/main.js\u0022\u003E\u003C/script\u003E\n\u003C/body\u003E\n\u003C/html\u003E\n\n--- server output ---\nnpm warn Unknown env config \u0022scripts-prepend-node-path\u0022. This will stop working in the next major version of npm. See \u0060npm help npmrc\u0060 for supported config options.\n\n\u003E editor-planta@1.0.0 dev\n\u003E vite --host 127.0.0.1 --port 5186 --strictPort\n\n\n  VITE v4.5.14  ready in 279 ms\n\n  \u279C  Local:   http://127.0.0.1:5186/\n\u001B[1m\u001B[33m[@vue/compiler-sfc]\u001B[0m\u001B[33m \u0060defineProps\u0060 is a compiler macro and no longer needs to be imported.\u001B[0m\n\n\u001B[1m\u001B[33m[@vue/compiler-sfc]\u001B[0m\u001B[33m \u0060defineEmits\u0060 is a compiler macro and no longer needs to be imported.\u001B[0m\n\n",
+        "durationMs": 1222
+      }
+    ],
+    "executions": [
+      {
+        "source": "production-build",
+        "resolvedExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/npm",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "/home/denver/github/PlantaBaixa",
+        "env": {},
+        "prependPath": [],
+        "platform": "linux",
+        "nodeExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/node",
+        "nodeVersion": "v24.15.0",
+        "packageManager": "npm",
+        "packageManagerExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/npm",
+        "packageManagerVersion": "11.12.1",
+        "cleanup": {
+          "RootProcessId": 181633,
+          "Completed": true,
+          "ProcessesObserved": 1,
+          "ProcessesTerminated": 0,
+          "Failure": null
+        }
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/npm",
+        "args": [
+          "test"
+        ],
+        "cwd": "/home/denver/github/PlantaBaixa",
+        "env": {},
+        "prependPath": [],
+        "platform": "linux",
+        "nodeExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/node",
+        "nodeVersion": "v24.15.0",
+        "packageManager": "npm",
+        "packageManagerExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/npm",
+        "packageManagerVersion": "11.12.1",
+        "cleanup": {
+          "RootProcessId": 181916,
+          "Completed": true,
+          "ProcessesObserved": 1,
+          "ProcessesTerminated": 0,
+          "Failure": null
+        }
+      },
+      {
+        "source": "dev-server-serves-home",
+        "resolvedExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/npm",
+        "args": [
+          "run",
+          "dev",
+          "--",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "5186",
+          "--strictPort"
+        ],
+        "cwd": "/home/denver/github/PlantaBaixa",
+        "env": {},
+        "prependPath": [],
+        "platform": "linux",
+        "nodeExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/node",
+        "nodeVersion": "v24.15.0",
+        "packageManager": "npm",
+        "packageManagerExecutable": "/home/denver/.nvm/versions/node/v24.15.0/bin/npm",
+        "packageManagerVersion": "11.12.1",
+        "cleanup": {
+          "RootProcessId": 181993,
+          "Completed": true,
+          "ProcessesObserved": 1,
+          "ProcessesTerminated": 1,
+          "Failure": null
+        }
+      }
+    ]
+  }
+}

@@ -15,6 +15,12 @@ const number = (value) => {
   return Number(value)
 }
 
+const nonNegative = (value, field) => {
+  const parsed = number(value)
+  if (parsed < 0) throw new RangeError(`Informe ${field} com valor maior ou igual a zero.`)
+  return parsed
+}
+
 export const getOpeningGeometry = (opening, rooms) => {
   const room = rooms.find(item => item.id === opening.roomId)
   if (!room || room.type !== 'room') throw new Error('Selecione um cômodo válido para a abertura.')
@@ -57,8 +63,13 @@ export const normalizeOpenings = (openings, rooms) => {
       roomId: value.roomId,
       side: value.side,
       offset: number(value.offset),
-      width: number(value.width)
+      width: number(value.width),
+      sillHeight: value.sillHeight === undefined ? 0 : nonNegative(value.sillHeight, 'peitoril'),
+      headHeight: value.headHeight === undefined ? 2.1 : nonNegative(value.headHeight, 'altura superior da abertura'),
+      depthMode: value.depthMode ?? 'wall'
     }
+    if (!['wall'].includes(opening.depthMode)) throw new TypeError('O modo de profundidade da abertura é inválido.')
+    if (opening.headHeight <= opening.sillHeight) throw new RangeError('A altura superior da abertura deve ser maior que o peitoril.')
     if (ids.has(opening.id)) throw new Error('Existem aberturas com identificadores repetidos.')
     ids.add(opening.id)
     if (opening.type === 'door') {

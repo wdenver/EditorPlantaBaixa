@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { OBJECT_TYPES, getObjectDefaults, normalizeObjectType } from '../objectTypes.js'
 import { normalizeWallSettings, normalizeWallThicknesses } from '../walls.js'
 import { normalizeOpenings } from '../openings.js'
+import { calculateRectangleUnionArea } from '../geometry.js'
 
 const STORAGE_KEY = 'editor-planta-project-v1'
 
@@ -386,9 +387,9 @@ export const usePlantStore = defineStore('plant', () => {
     return rooms.value.find(r => r.id === id)
   }
 
-  const getTotalArea = computed(() => {
-    return rooms.value.reduce((total, room) => total + (room.type === 'room' && room.includeInBuiltArea ? room.width * room.height : 0), 0)
-  })
+  const getTotalArea = computed(() => calculateRectangleUnionArea(
+    rooms.value.filter(room => room.type === 'room' && room.includeInBuiltArea)
+  ))
 
   const resetProject = () => {
     lot.value = null
